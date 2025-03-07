@@ -69,29 +69,31 @@ public class AuthService {
         // Save user
         user = userRepository.save(user);
 
-        // Create and save customer record for the new user
+        // Create and save a customer record linked to this user
         Customer customer = Customer.builder()
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .email(user.getEmail())
                 .phone(user.getPhone())
-                .registrationDate(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .active(true)
                 .totalVisits(0)
                 .totalSpent(BigDecimal.ZERO)
-                .address(
-                        Address.builder()
-                                .street("")
-                                .city("")
-                                .state("")
-                                .zipCode("")
-                                .country("")
-                                .build()
-                )
+                .registrationDate(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
                 .build();
 
-        // Save customer
+        // If address details were provided, create an address for the customer
+        if (request.getAddress() != null) {
+            Address address = Address.builder()
+                    .street(request.getAddress().getStreet())
+                    .city(request.getAddress().getCity())
+                    .state(request.getAddress().getState())
+                    .zipCode(request.getAddress().getZipCode())
+                    .country(request.getAddress().getCountry())
+                    .build();
+            customer.setAddress(address);
+        }
+
         customerRepository.save(customer);
 
         // Generate JWT token
