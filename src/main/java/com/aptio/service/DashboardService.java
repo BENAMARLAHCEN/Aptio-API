@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -39,9 +41,7 @@ public class DashboardService {
 
         // Count new customers in the last 30 days
         LocalDateTime thirtyDaysAgoDateTime = LocalDateTime.now().minusDays(30);
-        List<Customer> newCustomers = customerRepository.findAll().stream()
-                .filter(customer -> customer.getRegistrationDate().isAfter(thirtyDaysAgoDateTime))
-                .collect(Collectors.toList());
+        List<Customer> newCustomers = customerRepository.findByRegistrationDateAfter(thirtyDaysAgoDateTime);
         int newCustomerCount = newCustomers.size();
 
         // Calculate utilization rate (percentage of working hours filled with appointments)
@@ -88,7 +88,10 @@ public class DashboardService {
                 .sum();
 
         // Calculate utilization rate
-        return totalWorkingMinutes > 0 ? (scheduledMinutes * 100.0 / totalWorkingMinutes) : 0;
+        return totalWorkingMinutes > 0 ?
+            new BigDecimal(scheduledMinutes * 100.0 / totalWorkingMinutes)
+                .setScale(2, RoundingMode.HALF_UP)
+                .doubleValue() : 0;
     }
 
     /**

@@ -448,6 +448,8 @@ public class AppointmentService {
         dto.setCustomerName(appointment.getCustomer().getFirstName() + " " + appointment.getCustomer().getLastName());
         dto.setServiceName(appointment.getService().getName());
         dto.setDuration(appointment.getService().getDuration());
+        dto.setCustomerId(appointment.getCustomer().getId());
+        dto.setServiceId(appointment.getService().getId());
 
         if (appointment.getStaff() != null) {
             dto.setStaffName(appointment.getStaff().getUser().getFirstName() + " " +
