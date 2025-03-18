@@ -25,4 +25,5 @@ public interface CustomerRepository extends JpaRepository<Customer, String> {
     List<Customer> searchCustomers(String query);
 
     List<Customer> findByRegistrationDateAfter(LocalDateTime date);
+
 }

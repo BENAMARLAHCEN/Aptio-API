@@ -32,4 +32,7 @@ public class RegisterRequest {
     private String password;
 
     private String phone;
+
+    // Address details (optional)
+    private AddressDTO address;
 }
