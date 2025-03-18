@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalTime;
+
 @Service
 @RequiredArgsConstructor
 public class SettingsService {
@@ -16,12 +18,11 @@ public class SettingsService {
     public BusinessSettings getBusinessSettings() {
         BusinessSettings settings = businessSettingsRepository.findFirstByOrderById();
 
-        // If no settings exist, create default settings
         if (settings == null) {
             settings = BusinessSettings.builder()
                     .businessName("Aptio Appointment System")
-                    .businessHoursStart(java.time.LocalTime.of(9, 0))
-                    .businessHoursEnd(java.time.LocalTime.of(18, 0))
+                    .businessHoursStart(LocalTime.of(9, 0))
+                    .businessHoursEnd(LocalTime.of(18, 0))
                     .daysOpen("0111110") // Mon-Fri
                     .defaultAppointmentDuration(30)
                     .timeSlotInterval(15)
@@ -47,7 +48,6 @@ public class SettingsService {
             return businessSettingsRepository.save(settings);
         }
 
-        // Update fields
         existingSettings.setBusinessName(settings.getBusinessName());
         existingSettings.setBusinessHoursStart(settings.getBusinessHoursStart());
         existingSettings.setBusinessHoursEnd(settings.getBusinessHoursEnd());
@@ -60,6 +60,7 @@ public class SettingsService {
         existingSettings.setPhone(settings.getPhone());
         existingSettings.setEmail(settings.getEmail());
         existingSettings.setWebsite(settings.getWebsite());
+        existingSettings.setUpdatedAt(java.time.LocalDateTime.now());
 
         return businessSettingsRepository.save(existingSettings);
     }

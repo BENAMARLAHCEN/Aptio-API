@@ -55,34 +55,25 @@ public class StaffService {
 
     @Transactional
     public StaffDTO createStaff(StaffDTO staffDTO) {
-        // Check if email exists
         if (userRepository.existsByEmail(staffDTO.getEmail())) {
             throw new ValidationException("Email is already in use");
         }
-
-        // Create user first
         User user = User.builder()
                 .firstName(staffDTO.getFirstName())
                 .lastName(staffDTO.getLastName())
                 .email(staffDTO.getEmail())
                 .phone(staffDTO.getPhone())
-                .password(passwordEncoder.encode("password")) // Default password
+                .password(passwordEncoder.encode("password"))
                 .active(true)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
-
-        // Assign staff role
         Set<Role> roles = new HashSet<>();
         Role staffRole = roleRepository.findByName(Role.RoleName.ROLE_STAFF)
                 .orElseThrow(() -> new RuntimeException("Staff role not found"));
         roles.add(staffRole);
         user.setRoles(roles);
-
-        // Save user
         user = userRepository.save(user);
-
-        // Create staff entity
         Staff staff = Staff.builder()
                 .user(user)
                 .position(staffDTO.getPosition())
@@ -94,25 +85,20 @@ public class StaffService {
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
-
-        // Add work hours if provided
         if (staffDTO.getWorkHours() != null) {
             for (WorkHoursDTO workHoursDTO : staffDTO.getWorkHours()) {
                 WorkHours workHours = convertToWorkHoursEntity(workHoursDTO);
                 staff.addWorkHours(workHours);
             }
         } else {
-            // Initialize default work hours for each day of the week
             for (int i = 0; i < 7; i++) {
                 WorkHours workHours = WorkHours.builder()
                         .dayOfWeek(i)
-                        .isWorking(i > 0 && i < 6) // Mon-Fri working days by default
+                        .isWorking(i > 0 && i < 6)
                         .startTime(i > 0 && i < 6 ? java.time.LocalTime.of(9, 0) : null)
                         .endTime(i > 0 && i < 6 ? java.time.LocalTime.of(17, 0) : null)
                         .breaks(new ArrayList<>())
                         .build();
-
-                // Add lunch break for working days
                 if (i > 0 && i < 6) {
                     TimeSlot lunchBreak = TimeSlot.builder()
                             .startTime(java.time.LocalTime.of(12, 0))
@@ -136,22 +122,16 @@ public class StaffService {
                 .orElseThrow(() -> new ResourceNotFoundException("Staff", "id", id));
 
         User user = staff.getUser();
-
-        // Check if email has changed and is already in use
         if (!user.getEmail().equals(staffDTO.getEmail()) &&
                 userRepository.existsByEmail(staffDTO.getEmail())) {
             throw new ValidationException("Email is already in use");
         }
-
-        // Update user
         user.setFirstName(staffDTO.getFirstName());
         user.setLastName(staffDTO.getLastName());
         user.setEmail(staffDTO.getEmail());
         user.setPhone(staffDTO.getPhone());
 
         userRepository.save(user);
-
-        // Update staff
         staff.setPosition(staffDTO.getPosition());
 
         if (staffDTO.getSpecialties() != null) {
@@ -161,10 +141,7 @@ public class StaffService {
         staff.setColor(staffDTO.getColor());
         staff.setAvatar(staffDTO.getAvatar());
         staff.setActive(staffDTO.getIsActive());
-
-        // Update work hours if provided
         if (staffDTO.getWorkHours() != null) {
-            // Create a map of existing work hours by day of week for easier lookup
             java.util.Map<Integer, WorkHours> existingWorkHoursMap = staff.getWorkHours().stream()
                     .collect(Collectors.toMap(WorkHours::getDayOfWeek, wh -> wh));
 
@@ -174,17 +151,11 @@ public class StaffService {
                 WorkHours existingWorkHours = existingWorkHoursMap.get(workHoursDTO.getDayOfWeek());
 
                 if (existingWorkHours != null) {
-                    // Update existing work hours
                     existingWorkHours.setWorking(workHoursDTO.getIsWorking());
                     existingWorkHours.setStartTime(workHoursDTO.getStartTime());
                     existingWorkHours.setEndTime(workHoursDTO.getEndTime());
-
-                    // Update breaks
                     if (workHoursDTO.getBreaks() != null) {
-                        // Remove all existing breaks
                         existingWorkHours.getBreaks().clear();
-
-                        // Add new breaks
                         for (TimeSlotDTO breakDTO : workHoursDTO.getBreaks()) {
                             TimeSlot breakSlot = TimeSlot.builder()
                                     .startTime(breakDTO.getStartTime())
@@ -198,14 +169,11 @@ public class StaffService {
 
                     updatedWorkHours.add(existingWorkHours);
                 } else {
-                    // Create new work hours
                     WorkHours newWorkHours = convertToWorkHoursEntity(workHoursDTO);
                     newWorkHours.setStaff(staff);
                     updatedWorkHours.add(newWorkHours);
                 }
             }
-
-            // Replace all work hours
             staff.getWorkHours().clear();
             for (WorkHours workHours : updatedWorkHours) {
                 staff.addWorkHours(workHours);
@@ -220,11 +188,7 @@ public class StaffService {
     public void deleteStaff(String id) {
         Staff staff = staffRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Staff", "id", id));
-
-        // Delete staff
         staffRepository.delete(staff);
-
-        // Delete user
         userRepository.delete(staff.getUser());
     }
 
@@ -234,8 +198,6 @@ public class StaffService {
                 .orElseThrow(() -> new ResourceNotFoundException("Staff", "id", id));
 
         staff.setActive(active);
-
-        // Also update user active status
         User user = staff.getUser();
         user.setActive(active);
         userRepository.save(user);
@@ -259,8 +221,6 @@ public class StaffService {
         dto.setColor(staff.getColor());
         dto.setAvatar(staff.getAvatar());
         dto.setIsActive(staff.isActive());
-
-        // Convert work hours
         List<WorkHoursDTO> workHoursDTO = staff.getWorkHours().stream()
                 .map(this::convertToWorkHoursDTO)
                 .collect(Collectors.toList());
@@ -277,8 +237,6 @@ public class StaffService {
         dto.setIsWorking(workHours.isWorking());
         dto.setStartTime(workHours.getStartTime());
         dto.setEndTime(workHours.getEndTime());
-
-        // Convert breaks
         List<TimeSlotDTO> breaksDTO = workHours.getBreaks().stream()
                 .map(this::convertToTimeSlotDTO)
                 .collect(Collectors.toList());
@@ -303,8 +261,6 @@ public class StaffService {
         workHours.setWorking(dto.getIsWorking());
         workHours.setStartTime(dto.getStartTime());
         workHours.setEndTime(dto.getEndTime());
-
-        // Convert breaks
         if (dto.getBreaks() != null) {
             for (TimeSlotDTO breakDTO : dto.getBreaks()) {
                 TimeSlot breakSlot = TimeSlot.builder()
@@ -324,8 +280,6 @@ public class StaffService {
     public StaffDTO updateWorkHours(String id, List<WorkHoursDTO> workHoursDTO) {
         Staff staff = staffRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Staff", "id", id));
-
-        // Create a map of existing work hours by day of week for easier lookup
         Map<Integer, WorkHours> existingWorkHoursMap = staff.getWorkHours().stream()
                 .collect(Collectors.toMap(WorkHours::getDayOfWeek, wh -> wh));
 
@@ -335,17 +289,11 @@ public class StaffService {
             WorkHours existingWorkHours = existingWorkHoursMap.get(hoursDTO.getDayOfWeek());
 
             if (existingWorkHours != null) {
-                // Update existing work hours
                 existingWorkHours.setWorking(hoursDTO.getIsWorking());
                 existingWorkHours.setStartTime(hoursDTO.getStartTime());
                 existingWorkHours.setEndTime(hoursDTO.getEndTime());
-
-                // Update breaks
                 if (hoursDTO.getBreaks() != null) {
-                    // Remove all existing breaks
                     existingWorkHours.getBreaks().clear();
-
-                    // Add new breaks
                     for (TimeSlotDTO breakDTO : hoursDTO.getBreaks()) {
                         TimeSlot breakSlot = TimeSlot.builder()
                                 .startTime(breakDTO.getStartTime())
@@ -359,14 +307,11 @@ public class StaffService {
 
                 updatedWorkHours.add(existingWorkHours);
             } else {
-                // Create new work hours
                 WorkHours newWorkHours = convertToWorkHoursEntity(hoursDTO);
                 newWorkHours.setStaff(staff);
                 updatedWorkHours.add(newWorkHours);
             }
         }
-
-        // Replace all work hours
         staff.getWorkHours().clear();
         for (WorkHours workHours : updatedWorkHours) {
             staff.addWorkHours(workHours);
