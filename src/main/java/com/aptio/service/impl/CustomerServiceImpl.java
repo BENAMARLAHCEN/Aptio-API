@@ -180,6 +180,7 @@ public class CustomerServiceImpl implements CustomerService {
         CustomerNote note = modelMapper.map(noteDTO, CustomerNote.class);
         note.setCustomer(customer);
         note.setCreatedAt(LocalDateTime.now());
+        note.setCreatedBy(noteDTO.getCreatedBy()); // Ensure created_by is set
 
         customer.addNote(note);
         customerRepository.save(customer);

@@ -18,6 +18,6 @@ public class CustomerNoteDTO {
     @NotBlank(message = "Content is required")
     private String content;
 
+    @NotBlank(message = "Created by is required")
     private String createdBy;
-    private LocalDateTime createdAt;
 }

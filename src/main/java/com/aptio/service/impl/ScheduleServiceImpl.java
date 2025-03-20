@@ -1,8 +1,10 @@
 package com.aptio.service.impl;
 
+import com.aptio.dto.ResponseScheduleEntryDTO;
 import com.aptio.dto.ScheduleEntryDTO;
 import com.aptio.exception.ResourceNotFoundException;
 import com.aptio.exception.ValidationException;
+import com.aptio.mapper.ScheduleMapper;
 import com.aptio.model.Appointment;
 import com.aptio.model.BusinessSettings;
 import com.aptio.model.ScheduleEntry;
@@ -29,27 +31,37 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final ScheduleEntryRepository scheduleEntryRepository;
     private final StaffRepository staffRepository;
     private final BusinessSettingsRepository settingsRepository;
-    private final ModelMapper modelMapper;
+    private final ModelMapper modelMapper; // Keep for ResponseScheduleEntryDTO mapping
+    private final ScheduleMapper scheduleMapper;
 
-    public List<ScheduleEntryDTO> getStaffSchedule(String staffId, LocalDate startDate, LocalDate endDate) {
+    public List<ResponseScheduleEntryDTO> getStaffSchedule(String staffId, LocalDate startDate, LocalDate endDate) {
         if (!staffRepository.existsById(staffId)) {
             throw new ResourceNotFoundException("Staff", "id", staffId);
         }
+        List<ScheduleEntry> staffSchedule = scheduleEntryRepository.findStaffSchedule(startDate, endDate, staffId);
 
-        return scheduleEntryRepository.findStaffSchedule(startDate, endDate, staffId).stream()
-                .map(entry -> modelMapper.map(entry, ScheduleEntryDTO.class))
+        // First convert to regular ScheduleEntryDTO using the mapper
+        List<ScheduleEntryDTO> dtos = staffSchedule.stream()
+                .map(scheduleMapper::toDTO)
                 .collect(Collectors.toList());
+
+        // Then convert to ResponseScheduleEntryDTO (we're still using ModelMapper for this conversion)
+        List<ResponseScheduleEntryDTO> response = dtos.stream()
+                .map(dto -> modelMapper.map(dto, ResponseScheduleEntryDTO.class))
+                .collect(Collectors.toList());
+
+        return response;
     }
 
     public List<ScheduleEntryDTO> getScheduleForDate(LocalDate date) {
         return scheduleEntryRepository.findByDate(date).stream()
-                .map(entry -> modelMapper.map(entry, ScheduleEntryDTO.class))
+                .map(scheduleMapper::toDTO)
                 .collect(Collectors.toList());
     }
 
     public List<ScheduleEntryDTO> getScheduleForDateRange(LocalDate startDate, LocalDate endDate) {
         return scheduleEntryRepository.findByDateBetween(startDate, endDate).stream()
-                .map(entry -> modelMapper.map(entry, ScheduleEntryDTO.class))
+                .map(scheduleMapper::toDTO)
                 .collect(Collectors.toList());
     }
 
@@ -71,29 +83,15 @@ public class ScheduleServiceImpl implements ScheduleService {
             throw new ValidationException("There are overlapping schedule entries for this time period");
         }
 
-        // Create schedule entry
-        ScheduleEntry entry = modelMapper.map(entryDTO, ScheduleEntry.class);
+        // Create schedule entry using mapper
+        ScheduleEntry entry = scheduleMapper.toEntity(entryDTO);
         entry.setStaff(staff);
-
-        // Set resource if provided
-        if (entryDTO.getResourceId() != null && !entryDTO.getResourceId().isEmpty()) {
-            // Resource validation would go here
-        }
-
-        // Set default values if not provided
-        if (entry.getType() == null) {
-            entry.setType(ScheduleEntry.EntryType.OTHER);
-        }
-
-        if (entry.getStatus() == null) {
-            entry.setStatus(ScheduleEntry.EntryStatus.SCHEDULED);
-        }
 
         entry.setCreatedAt(LocalDateTime.now());
         entry.setUpdatedAt(LocalDateTime.now());
 
         ScheduleEntry savedEntry = scheduleEntryRepository.save(entry);
-        return modelMapper.map(savedEntry, ScheduleEntryDTO.class);
+        return scheduleMapper.toDTO(savedEntry);
     }
 
     @Transactional
@@ -118,24 +116,12 @@ public class ScheduleServiceImpl implements ScheduleService {
             }
         }
 
-        // Update entry
-        existingEntry.setTitle(entryDTO.getTitle());
-        existingEntry.setDate(entryDTO.getDate());
-        existingEntry.setStartTime(entryDTO.getStartTime());
-        existingEntry.setEndTime(entryDTO.getEndTime());
-        existingEntry.setNotes(entryDTO.getNotes());
-        existingEntry.setColor(entryDTO.getColor());
-
-        if (entryDTO.getType() != null) {
-            existingEntry.setType(ScheduleEntry.EntryType.valueOf(entryDTO.getType()));
-        }
-
-        if (entryDTO.getStatus() != null) {
-            existingEntry.setStatus(ScheduleEntry.EntryStatus.valueOf(entryDTO.getStatus()));
-        }
+        // Update entry using mapper
+        scheduleMapper.updateEntityFromDTO(entryDTO, existingEntry);
+        existingEntry.setUpdatedAt(LocalDateTime.now());
 
         ScheduleEntry updatedEntry = scheduleEntryRepository.save(existingEntry);
-        return modelMapper.map(updatedEntry, ScheduleEntryDTO.class);
+        return scheduleMapper.toDTO(updatedEntry);
     }
 
     @Transactional
@@ -155,26 +141,8 @@ public class ScheduleServiceImpl implements ScheduleService {
             return; // No staff assigned, no schedule entry needed
         }
 
-        // Calculate end time
-        LocalTime endTime = appointment.getTime().plusMinutes(appointment.getService().getDuration());
-
-        // Create schedule entry
-        ScheduleEntry entry = ScheduleEntry.builder()
-                .staff(appointment.getStaff())
-                .appointment(appointment)
-                .title(appointment.getService().getName() + " - " +
-                        appointment.getCustomer().getFirstName() + " " +
-                        appointment.getCustomer().getLastName())
-                .date(appointment.getDate())
-                .startTime(appointment.getTime())
-                .endTime(endTime)
-                .notes(appointment.getNotes())
-                .type(ScheduleEntry.EntryType.APPOINTMENT)
-                .status(mapAppointmentStatusToEntryStatus(appointment.getStatus()))
-                .createdAt(appointment.getCreatedAt())
-                .updatedAt(appointment.getUpdatedAt())
-                .build();
-
+        // Use mapper to create schedule entry from appointment
+        ScheduleEntry entry = scheduleMapper.createEntryFromAppointment(appointment, appointment.getStaff());
         scheduleEntryRepository.save(entry);
     }
 
@@ -234,22 +202,5 @@ public class ScheduleServiceImpl implements ScheduleService {
         existingSettings.setWebsite(settings.getWebsite());
 
         return settingsRepository.save(existingSettings);
-    }
-
-    /**
-     * Maps appointment status to schedule entry status
-     */
-    private ScheduleEntry.EntryStatus mapAppointmentStatusToEntryStatus(Appointment.AppointmentStatus status) {
-        switch (status) {
-            case PENDING:
-            case CONFIRMED:
-                return ScheduleEntry.EntryStatus.SCHEDULED;
-            case COMPLETED:
-                return ScheduleEntry.EntryStatus.COMPLETED;
-            case CANCELLED:
-                return ScheduleEntry.EntryStatus.CANCELLED;
-            default:
-                return ScheduleEntry.EntryStatus.SCHEDULED;
-        }
     }
 }

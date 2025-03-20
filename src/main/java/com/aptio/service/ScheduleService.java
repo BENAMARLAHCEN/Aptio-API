@@ -1,5 +1,6 @@
 package com.aptio.service;
 
+import com.aptio.dto.ResponseScheduleEntryDTO;
 import com.aptio.dto.ScheduleEntryDTO;
 import com.aptio.model.Appointment;
 import com.aptio.model.BusinessSettings;
@@ -10,7 +11,7 @@ import java.util.List;
 
 public interface ScheduleService {
 
-    List<ScheduleEntryDTO> getStaffSchedule(String staffId, LocalDate startDate, LocalDate endDate);
+    List<ResponseScheduleEntryDTO> getStaffSchedule(String staffId, LocalDate startDate, LocalDate endDate);
 
     List<ScheduleEntryDTO> getScheduleForDate(LocalDate date);
 
