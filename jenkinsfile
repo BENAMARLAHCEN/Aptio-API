@@ -1,0 +1,101 @@
+pipeline {
+    agent any
+    
+    tools {
+        maven 'Maven 3.8.5'
+        jdk 'JDK 17'
+    }
+    
+    environment {
+        DOCKER_IMAGE = 'aptio-api'
+        DOCKER_TAG = "${env.BUILD_NUMBER}"
+        SONAR_HOST_URL = 'http://sonarqube:9000'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                sh 'mvn clean package -DskipTests'
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                sh 'mvn test'
+            }
+            post {
+                always {
+                    junit '**/target/surefire-reports/*.xml'
+                }
+            }
+        }
+        
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh 'mvn sonar:sonar -Dsonar.projectKey=aptio-api -Dsonar.host.url=${SONAR_HOST_URL}'
+                }
+            }
+        }
+        
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 1, unit: 'HOURS') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+        
+        stage('Build Docker Image') {
+            steps {
+                sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
+                sh "docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest"
+            }
+        }
+        
+        stage('Push Docker Image') {
+            steps {
+                echo 'In a real environment, you would push to Docker Hub or a private registry'
+                // Example for Docker Hub (requires credentials setup in Jenkins):
+                // docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
+                //     docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push()
+                //     docker.image("${DOCKER_IMAGE}:latest").push()
+                // }
+            }
+        }
+        
+        stage('Deploy to Dev') {
+            steps {
+                sh "docker stop ${DOCKER_IMAGE}-dev || true"
+                sh "docker rm ${DOCKER_IMAGE}-dev || true"
+                sh """
+                    docker run -d --name ${DOCKER_IMAGE}-dev \
+                    -p 8090:8080 \
+                    -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/aptiodb \
+                    -e SPRING_DATASOURCE_USERNAME=postgres \
+                    -e SPRING_DATASOURCE_PASSWORD=password \
+                    --network=aptio-network \
+                    ${DOCKER_IMAGE}:${DOCKER_TAG}
+                """
+            }
+        }
+    }
+    
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo 'Pipeline executed successfully!'
+        }
+        failure {
+            echo 'Pipeline execution failed!'
+        }
+    }
+}
