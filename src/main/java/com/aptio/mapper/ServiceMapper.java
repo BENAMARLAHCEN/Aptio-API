@@ -7,18 +7,11 @@ import com.aptio.repository.ServiceCategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/**
- * Custom mapper for Service entities to avoid conflicts with Java's Service interface
- */
+
 @Component
 @RequiredArgsConstructor
 public class ServiceMapper {
-
-    private final ServiceCategoryRepository categoryRepository;
-
-    /**
-     * Maps Service entity to ServiceDTO
-     */
+    
     public ServiceDTO toDTO(Service service) {
         if (service == null) {
             return null;
@@ -37,9 +30,7 @@ public class ServiceMapper {
         return dto;
     }
 
-    /**
-     * Maps ServiceDTO to Service entity for creation
-     */
+   
     public Service toEntity(ServiceDTO dto) {
         if (dto == null) {
             return null;
@@ -53,14 +44,9 @@ public class ServiceMapper {
         service.setActive(dto.isActive());
         service.setImageUrl(dto.getImageUrl());
 
-        // Category needs to be set by the service layer
-
         return service;
     }
-
-    /**
-     * Updates an existing Service entity from DTO
-     */
+    
     public void updateEntityFromDTO(ServiceDTO dto, Service service) {
         if (dto == null || service == null) {
             return;
@@ -72,7 +58,5 @@ public class ServiceMapper {
         service.setPrice(dto.getPrice());
         service.setActive(dto.isActive());
         service.setImageUrl(dto.getImageUrl());
-
-        // Category needs to be set by the service layer
     }
 }

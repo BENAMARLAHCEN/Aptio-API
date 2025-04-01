@@ -32,19 +32,14 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
-                        // Public endpoints
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/api-docs/**").permitAll()
                         .requestMatchers("/swagger-ui/**").permitAll()
-
-                        // Customer appointment booking endpoints
                         .requestMatchers("/user/appointments").permitAll()
                         .requestMatchers("/user/appointments/").permitAll()
                         .requestMatchers("/user/appointments/**").permitAll()
                         .requestMatchers("/user/appointments/available-slots").permitAll()
-
-                        // Previous endpoints already permitted (should be reviewed for security)
                         .requestMatchers("/appointments").permitAll()
                         .requestMatchers("/appointments/").permitAll()
                         .requestMatchers("/appointments/user/appointments").permitAll()
@@ -71,8 +66,6 @@ public class SecurityConfig {
                         .requestMatchers("/schedule/range").permitAll()
                         .requestMatchers("/staff/**").permitAll()
                         .requestMatchers("/staff").permitAll()
-
-                        // All other requests need authentication
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -80,8 +73,6 @@ public class SecurityConfig {
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
-
-        // Allow frames for H2 console
         http.headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable()));
 
         return http.build();

@@ -1,0 +1,67 @@
+sequenceDiagram
+    autonumber
+
+    actor Customer
+    participant UI as User Interface
+    participant AC as AppointmentController
+    participant AS as AppointmentService
+    participant SR as ServiceRepository
+    participant CR as CustomerRepository
+    participant StR as StaffRepository
+    participant AR as AppointmentRepository
+    participant SS as ScheduleService
+    participant SER as ScheduleEntryRepository
+
+    Customer->>+UI: Browse available services
+    UI->>+AC: GET /services
+    AC->>+SR: findAll()
+    SR-->>-AC: List of services
+    AC-->>-UI: Return service list
+    UI-->>-Customer: Display services
+
+    Customer->>+UI: Select service & date
+    UI->>+AC: GET /appointments/available-slots?date=&serviceId=
+    AC->>+AS: getAvailableTimeSlots(date, serviceId)
+    AS->>+SR: findById(serviceId)
+    SR-->>-AS: Service details
+    AS->>+SS: getBusinessSettings()
+    SS-->>-AS: Business settings
+    AS->>+StR: findByIsActive(true)
+    StR-->>-AS: Available staff
+    AS->>+AR: findByDateAndStaffId()
+    AR-->>-AS: Existing appointments
+    AS-->>-AC: List of available time slots
+    AC-->>-UI: Return available slots
+    UI-->>-Customer: Display available slots
+
+    Customer->>+UI: Select time slot & submit booking
+    UI->>+AC: POST /user/appointments
+    AC->>+CR: findByEmail(userEmail)
+    CR-->>-AC: Customer data
+    AC->>+AS: createAppointment(appointmentDTO)
+    AS->>+CR: findById(customerId)
+    CR-->>-AS: Customer data
+    AS->>+SR: findById(serviceId)
+    SR-->>-AS: Service data
+
+    opt Staff assigned
+        AS->>+StR: findById(staffId)
+        StR-->>-AS: Staff data
+    end
+
+    AS->>+AR: isTimeSlotAvailable(date, time, duration, staffId)
+    AR-->>-AS: Slot availability status
+
+    AS->>+AR: save(appointment)
+    AR-->>-AS: Saved appointment
+
+    opt Staff assigned
+        AS->>+SS: createAppointmentScheduleEntry(appointment)
+        SS->>+SER: save(scheduleEntry)
+        SER-->>-SS: Saved schedule entry
+        SS-->>-AS: Schedule entry created
+    end
+
+    AS-->>-AC: Appointment created
+    AC-->>-UI: Appointment confirmation
+    UI-->>-Customer: Display confirmation

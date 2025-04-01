@@ -64,7 +64,7 @@ public class AppointmentServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Setup test data
+
         customer = Customer.builder()
                 .id("1")
                 .firstName("John")
@@ -128,13 +128,13 @@ public class AppointmentServiceTest {
         appointmentDTO.setStatus("PENDING");
         appointmentDTO.setPrice(service.getPrice());
 
-        // Business settings
+
         businessSettings = BusinessSettings.builder()
                 .id(1L)
                 .businessName("Test Salon")
                 .businessHoursStart(LocalTime.of(9, 0))
                 .businessHoursEnd(LocalTime.of(18, 0))
-                .daysOpen("0111110") // Closed on Sunday
+                .daysOpen("0111110")
                 .defaultAppointmentDuration(30)
                 .timeSlotInterval(15)
                 .allowOverlappingAppointments(false)
@@ -145,9 +145,9 @@ public class AppointmentServiceTest {
     private List<WorkHours> createDefaultWorkHours() {
         List<WorkHours> workHours = new ArrayList<>();
 
-        // Create work hours for each day of the week
+
         for (int i = 0; i < 7; i++) {
-            boolean isWorkDay = i > 0 && i < 6; // Monday to Friday
+            boolean isWorkDay = i > 0 && i < 6;
 
             WorkHours dayHours = WorkHours.builder()
                     .id((long) i)
@@ -158,7 +158,7 @@ public class AppointmentServiceTest {
                     .breaks(new ArrayList<>())
                     .build();
 
-            // Add lunch break for workdays
+
             if (isWorkDay) {
                 TimeSlot lunchBreak = TimeSlot.builder()
                         .id(1L)
@@ -179,14 +179,14 @@ public class AppointmentServiceTest {
 
     @Test
     void getAllAppointments_ShouldReturnListOfAppointments() {
-        // Given
+
         List<Appointment> appointments = List.of(appointment);
         when(appointmentRepository.findAll()).thenReturn(appointments);
 
-        // When
+
         List<AppointmentDTO> result = appointmentService.getAllAppointments();
 
-        // Then
+
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(appointment.getId(), result.get(0).getId());
@@ -195,13 +195,13 @@ public class AppointmentServiceTest {
 
     @Test
     void getAppointmentById_WhenAppointmentExists_ShouldReturnAppointment() {
-        // Given
+
         when(appointmentRepository.findById("1")).thenReturn(Optional.of(appointment));
 
-        // When
+
         AppointmentDTO result = appointmentService.getAppointmentById("1");
 
-        // Then
+
         assertNotNull(result);
         assertEquals(appointment.getId(), result.getId());
         verify(appointmentRepository).findById("1");
@@ -209,17 +209,17 @@ public class AppointmentServiceTest {
 
     @Test
     void getAppointmentById_WhenAppointmentDoesNotExist_ShouldThrowException() {
-        // Given
+
         when(appointmentRepository.findById("999")).thenReturn(Optional.empty());
 
-        // When/Then
+
         assertThrows(ResourceNotFoundException.class, () -> appointmentService.getAppointmentById("999"));
         verify(appointmentRepository).findById("999");
     }
 
     @Test
     void createAppointment_WithValidData_ShouldCreateNewAppointment() {
-        // Given
+
         when(customerRepository.findById(customer.getId())).thenReturn(Optional.of(customer));
         when(serviceRepository.findById(service.getId())).thenReturn(Optional.of(service));
         when(staffRepository.findById(staff.getId())).thenReturn(Optional.of(staff));
@@ -231,10 +231,10 @@ public class AppointmentServiceTest {
             return savedAppointment;
         });
 
-        // When
+
         AppointmentDTO result = appointmentService.createAppointment(appointmentDTO);
 
-        // Then
+
         assertNotNull(result);
         assertEquals(customer.getId(), result.getCustomerId());
         assertEquals(service.getId(), result.getServiceId());
@@ -245,10 +245,10 @@ public class AppointmentServiceTest {
 
     @Test
     void createAppointment_WithNonExistentCustomer_ShouldThrowException() {
-        // Given
+
         when(customerRepository.findById(customer.getId())).thenReturn(Optional.empty());
 
-        // When/Then
+
         assertThrows(ResourceNotFoundException.class, () -> appointmentService.createAppointment(appointmentDTO));
         verify(customerRepository).findById(customer.getId());
         verify(appointmentRepository, never()).save(any(Appointment.class));
@@ -256,11 +256,11 @@ public class AppointmentServiceTest {
 
     @Test
     void createAppointment_WithNonExistentService_ShouldThrowException() {
-        // Given
+
         when(customerRepository.findById(customer.getId())).thenReturn(Optional.of(customer));
         when(serviceRepository.findById(service.getId())).thenReturn(Optional.empty());
 
-        // When/Then
+
         assertThrows(ResourceNotFoundException.class, () -> appointmentService.createAppointment(appointmentDTO));
         verify(serviceRepository).findById(service.getId());
         verify(appointmentRepository, never()).save(any(Appointment.class));
@@ -268,12 +268,12 @@ public class AppointmentServiceTest {
 
     @Test
     void createAppointment_WithNonExistentStaff_ShouldThrowException() {
-        // Given
+
         when(customerRepository.findById(customer.getId())).thenReturn(Optional.of(customer));
         when(serviceRepository.findById(service.getId())).thenReturn(Optional.of(service));
         when(staffRepository.findById(staff.getId())).thenReturn(Optional.empty());
 
-        // When/Then
+
         assertThrows(ResourceNotFoundException.class, () -> appointmentService.createAppointment(appointmentDTO));
         verify(staffRepository).findById(staff.getId());
         verify(appointmentRepository, never()).save(any(Appointment.class));
@@ -281,13 +281,13 @@ public class AppointmentServiceTest {
 
     @Test
     void createAppointment_WithUnavailableTimeSlot_ShouldThrowException() {
-        // Given
+
         when(customerRepository.findById(customer.getId())).thenReturn(Optional.of(customer));
         when(serviceRepository.findById(service.getId())).thenReturn(Optional.of(service));
         when(staffRepository.findById(staff.getId())).thenReturn(Optional.of(staff));
         when(scheduleService.getBusinessSettings()).thenReturn(businessSettings);
 
-        // Create an overlapping appointment
+
         List<Appointment> overlappingAppointments = new ArrayList<>();
         overlappingAppointments.add(Appointment.builder()
                 .id("2")
@@ -295,20 +295,20 @@ public class AppointmentServiceTest {
                 .service(service)
                 .staff(staff)
                 .date(appointmentDTO.getDate())
-                .time(appointmentDTO.getTime()) // Same time
+                .time(appointmentDTO.getTime())
                 .status(Appointment.AppointmentStatus.CONFIRMED)
                 .build());
 
         when(appointmentRepository.findByDateAndStaffId(any(), any())).thenReturn(overlappingAppointments);
 
-        // When/Then
+
         assertThrows(ValidationException.class, () -> appointmentService.createAppointment(appointmentDTO));
         verify(appointmentRepository, never()).save(any(Appointment.class));
     }
 
     @Test
     void updateAppointment_WithValidData_ShouldUpdateAppointment() {
-        // Given
+
         when(appointmentRepository.findById("1")).thenReturn(Optional.of(appointment));
         when(customerRepository.findById(customer.getId())).thenReturn(Optional.of(customer));
         when(serviceRepository.findById(service.getId())).thenReturn(Optional.of(service));
@@ -317,14 +317,14 @@ public class AppointmentServiceTest {
         when(appointmentRepository.findByDateAndStaffId(any(), any())).thenReturn(new ArrayList<>());
         when(appointmentRepository.save(any(Appointment.class))).thenReturn(appointment);
 
-        // Update some fields
-        appointmentDTO.setNotes("Updated notes");
-        appointmentDTO.setTime(LocalTime.of(11, 0)); // Changed time
 
-        // When
+        appointmentDTO.setNotes("Updated notes");
+        appointmentDTO.setTime(LocalTime.of(11, 0));
+
+
         AppointmentDTO result = appointmentService.updateAppointment("1", appointmentDTO);
 
-        // Then
+
         assertNotNull(result);
         assertEquals("Updated notes", result.getNotes());
         assertEquals(LocalTime.of(11, 0), result.getTime());
@@ -335,14 +335,14 @@ public class AppointmentServiceTest {
 
     @Test
     void updateAppointmentStatus_ToConfirmed_ShouldUpdateStatus() {
-        // Given
+
         when(appointmentRepository.findById("1")).thenReturn(Optional.of(appointment));
         when(appointmentRepository.save(any(Appointment.class))).thenReturn(appointment);
 
-        // When
+
         AppointmentDTO result = appointmentService.updateAppointmentStatus("1", "CONFIRMED");
 
-        // Then
+
         assertNotNull(result);
         assertEquals("CONFIRMED", result.getStatus());
         verify(appointmentRepository).save(any(Appointment.class));
@@ -350,14 +350,14 @@ public class AppointmentServiceTest {
 
     @Test
     void updateAppointmentStatus_ToCancelled_ShouldUpdateStatusAndScheduleEntry() {
-        // Given
+
         when(appointmentRepository.findById("1")).thenReturn(Optional.of(appointment));
         when(appointmentRepository.save(any(Appointment.class))).thenReturn(appointment);
 
-        // When
+
         AppointmentDTO result = appointmentService.updateAppointmentStatus("1", "CANCELLED");
 
-        // Then
+
         assertNotNull(result);
         assertEquals("CANCELLED", result.getStatus());
         verify(appointmentRepository).save(any(Appointment.class));
@@ -366,89 +366,89 @@ public class AppointmentServiceTest {
 
     @Test
     void updateAppointmentStatus_WithInvalidStatus_ShouldThrowException() {
-        // Given
+
         when(appointmentRepository.findById("1")).thenReturn(Optional.of(appointment));
 
-        // When/Then
+
         assertThrows(ValidationException.class, () -> appointmentService.updateAppointmentStatus("1", "INVALID_STATUS"));
         verify(appointmentRepository, never()).save(any(Appointment.class));
     }
 
     @Test
     void deleteAppointment_WhenAppointmentExists_ShouldDeleteAppointment() {
-        // Given
+
         when(appointmentRepository.findById("1")).thenReturn(Optional.of(appointment));
 
-        // When
+
         appointmentService.deleteAppointment("1");
 
-        // Then
+
         verify(scheduleService).deleteAppointmentScheduleEntries("1");
         verify(appointmentRepository).deleteById("1");
     }
 
     @Test
     void deleteAppointment_WhenAppointmentDoesNotExist_ShouldThrowException() {
-        // Given
+
         when(appointmentRepository.findById("999")).thenReturn(Optional.empty());
 
-        // When/Then
+
         assertThrows(ResourceNotFoundException.class, () -> appointmentService.deleteAppointment("999"));
         verify(appointmentRepository, never()).deleteById(anyString());
     }
 
     @Test
     void getAvailableTimeSlots_OnBusinessDay_ShouldReturnAvailableSlots() {
-        // Given
+
         when(serviceRepository.findById(service.getId())).thenReturn(Optional.of(service));
         when(scheduleService.getBusinessSettings()).thenReturn(businessSettings);
         when(staffRepository.findById(staff.getId())).thenReturn(Optional.of(staff));
         when(appointmentRepository.findByDateAndStaffId(any(), any())).thenReturn(new ArrayList<>());
 
         LocalDate businessDay = LocalDate.now().plusDays(1);
-        while (businessDay.getDayOfWeek().getValue() % 7 == 0) { // Avoid Sunday (closed day)
+        while (businessDay.getDayOfWeek().getValue() % 7 == 0) {
             businessDay = businessDay.plusDays(1);
         }
 
-        // When
+
         List<String> result = appointmentService.getAvailableTimeSlots(businessDay, service.getId(), staff.getId());
 
-        // Then
+
         assertNotNull(result);
         assertFalse(result.isEmpty());
     }
 
     @Test
     void getAvailableTimeSlots_OnClosedDay_ShouldReturnEmptyList() {
-        // Given
+
         when(serviceRepository.findById(service.getId())).thenReturn(Optional.of(service));
         when(scheduleService.getBusinessSettings()).thenReturn(businessSettings);
 
-        // Find a Sunday (closed day according to daysOpen="0111110")
+
         LocalDate sunday = LocalDate.now();
         while (sunday.getDayOfWeek().getValue() % 7 != 0) {
             sunday = sunday.plusDays(1);
         }
 
-        // When
+
         List<String> result = appointmentService.getAvailableTimeSlots(sunday, service.getId(), staff.getId());
 
-        // Then
+
         assertNotNull(result);
         assertTrue(result.isEmpty());
     }
 
     @Test
     void getAppointmentsByCustomerId_ShouldReturnCustomerAppointments() {
-        // Given
+
         List<Appointment> customerAppointments = List.of(appointment);
         when(customerRepository.existsById(customer.getId())).thenReturn(true);
         when(appointmentRepository.findByCustomerId(customer.getId())).thenReturn(customerAppointments);
 
-        // When
+
         List<AppointmentDTO> result = appointmentService.getAppointmentsByCustomerId(customer.getId());
 
-        // Then
+
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(appointment.getId(), result.get(0).getId());
@@ -456,54 +456,54 @@ public class AppointmentServiceTest {
 
     @Test
     void getAppointmentsByCustomerId_WithNonExistentCustomer_ShouldThrowException() {
-        // Given
+
         when(customerRepository.existsById("999")).thenReturn(false);
 
-        // When/Then
+
         assertThrows(ResourceNotFoundException.class, () -> appointmentService.getAppointmentsByCustomerId("999"));
     }
 
     @Test
     void getAppointmentsByDate_ShouldReturnAppointmentsForDate() {
-        // Given
+
         LocalDate date = LocalDate.now();
         List<Appointment> dateAppointments = List.of(appointment);
         when(appointmentRepository.findByDate(date)).thenReturn(dateAppointments);
 
-        // When
+
         List<AppointmentDTO> result = appointmentService.getAppointmentsByDate(date);
 
-        // Then
+
         assertNotNull(result);
         assertEquals(1, result.size());
     }
 
     @Test
     void getAppointmentsByDateRange_ShouldReturnAppointmentsInRange() {
-        // Given
+
         LocalDate startDate = LocalDate.now();
         LocalDate endDate = LocalDate.now().plusDays(7);
         List<Appointment> rangeAppointments = List.of(appointment);
         when(appointmentRepository.findByDateBetween(startDate, endDate)).thenReturn(rangeAppointments);
 
-        // When
+
         List<AppointmentDTO> result = appointmentService.getAppointmentsByDateRange(startDate, endDate);
 
-        // Then
+
         assertNotNull(result);
         assertEquals(1, result.size());
     }
 
     @Test
     void getAppointmentsByStatus_ShouldReturnAppointmentsWithStatus() {
-        // Given
+
         List<Appointment> pendingAppointments = List.of(appointment);
         when(appointmentRepository.findByStatus(Appointment.AppointmentStatus.PENDING)).thenReturn(pendingAppointments);
 
-        // When
+
         List<AppointmentDTO> result = appointmentService.getAppointmentsByStatus(Appointment.AppointmentStatus.PENDING);
 
-        // Then
+
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals("PENDING", result.get(0).getStatus());

@@ -32,25 +32,25 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        // Initialize roles if not exist
+
         initRoles();
 
-        // Initialize admin user if not exist
+
         initAdminUser();
 
-        // Initialize business settings
+
         initBusinessSettings();
 
-        // Initialize service categories and services
+
         initServiceCategories();
 
-        // Initialize sample customers
+
         initSampleCustomers();
 
-        // Initialize staff members
+
         initStaffMembers();
 
-        // Initialize appointments
+
         initAppointments();
     }
 
@@ -64,7 +64,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initAdminUser() {
         if (!userRepository.existsByEmail("admin@aptio.com")) {
-            // Create admin user
+
             User adminUser = User.builder()
                     .firstName("Admin")
                     .lastName("User")
@@ -75,7 +75,7 @@ public class DataInitializer implements CommandLineRunner {
                     .updatedAt(LocalDateTime.now())
                     .build();
 
-            // Assign admin role
+
             Set<Role> adminRoles = new HashSet<>();
             roleRepository.findByName(Role.RoleName.ROLE_ADMIN).ifPresent(adminRoles::add);
             adminUser.setRoles(adminRoles);
@@ -90,7 +90,7 @@ public class DataInitializer implements CommandLineRunner {
                     .businessName("Aptio Appointment System")
                     .businessHoursStart(LocalTime.of(9, 0))
                     .businessHoursEnd(LocalTime.of(18, 0))
-                    .daysOpen("0111110") // Mon-Fri
+                    .daysOpen("0111110")
                     .defaultAppointmentDuration(30)
                     .timeSlotInterval(15)
                     .allowOverlappingAppointments(false)
@@ -107,7 +107,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initServiceCategories() {
         if (categoryRepository.count() == 0) {
-            // Create categories
+
             ServiceCategory hairCategory = ServiceCategory.builder()
                     .name("Hair")
                     .description("Hair cutting, styling, and coloring services")
@@ -132,14 +132,14 @@ public class DataInitializer implements CommandLineRunner {
                     .active(true)
                     .build();
 
-            // Save categories
+
             hairCategory = categoryRepository.save(hairCategory);
             nailsCategory = categoryRepository.save(nailsCategory);
             spaCategory = categoryRepository.save(spaCategory);
             consultationCategory = categoryRepository.save(consultationCategory);
 
-            // Create services
-            // Hair services
+
+
             Service haircut = Service.builder()
                     .name("Haircut")
                     .description("Basic haircut service with styling")
@@ -169,7 +169,7 @@ public class DataInitializer implements CommandLineRunner {
                     .active(true)
                     .build();
 
-            // Nails services
+
             Service manicure = Service.builder()
                     .name("Manicure")
                     .description("Basic manicure service with polish")
@@ -198,7 +198,7 @@ public class DataInitializer implements CommandLineRunner {
                     .active(true)
                     .build();
 
-            // Spa services
+
             Service facial = Service.builder()
                     .name("Facial")
                     .description("Refreshing facial treatment for all skin types")
@@ -219,7 +219,7 @@ public class DataInitializer implements CommandLineRunner {
                     .imageUrl("https://images.unsplash.com/photo-1600334129128-685c5582fd35?q=80&w=300")
                     .build();
 
-            // Consultation services
+
             Service styleConsultation = Service.builder()
                     .name("Style Consultation")
                     .description("Personal style consultation with our experts")
@@ -229,7 +229,7 @@ public class DataInitializer implements CommandLineRunner {
                     .active(false)
                     .build();
 
-            // Save services
+
             serviceRepository.save(haircut);
             serviceRepository.save(hairColoring);
             serviceRepository.save(beardTrim);
@@ -244,7 +244,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initSampleCustomers() {
         if (customerRepository.count() == 0) {
-            // Create sample addresses
+
             Address address1 = Address.builder()
                     .street("123 Main St")
                     .city("New York")
@@ -261,7 +261,7 @@ public class DataInitializer implements CommandLineRunner {
                     .country("USA")
                     .build();
 
-            // Create sample customers
+
             Customer customer1 = Customer.builder()
                     .firstName("John")
                     .lastName("Doe")
@@ -294,7 +294,7 @@ public class DataInitializer implements CommandLineRunner {
                     .registrationDate(LocalDateTime.now().minusMonths(4))
                     .build();
 
-            // Add notes to customers
+
             CustomerNote note1 = CustomerNote.builder()
                     .content("Prefers appointments in the morning")
                     .createdBy("Admin")
@@ -310,7 +310,7 @@ public class DataInitializer implements CommandLineRunner {
             customer1.addNote(note1);
             customer2.addNote(note2);
 
-            // Save customers
+
             customerRepository.save(customer1);
             customerRepository.save(customer2);
         }
@@ -318,7 +318,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initStaffMembers() {
         if (staffRepository.count() == 0) {
-            // Create staff users first
+
             User staffUser1 = User.builder()
                     .firstName("John")
                     .lastName("Smith")
@@ -352,7 +352,7 @@ public class DataInitializer implements CommandLineRunner {
                     .updatedAt(LocalDateTime.now())
                     .build();
 
-            // Assign staff role
+
             Set<Role> staffRoles = new HashSet<>();
             Role staffRole = roleRepository.findByName(Role.RoleName.ROLE_STAFF)
                     .orElseThrow(() -> new RuntimeException("Staff role not found"));
@@ -362,41 +362,41 @@ public class DataInitializer implements CommandLineRunner {
             staffUser2.setRoles(staffRoles);
             staffUser3.setRoles(staffRoles);
 
-            // Save staff users
+
             staffUser1 = userRepository.save(staffUser1);
             staffUser2 = userRepository.save(staffUser2);
             staffUser3 = userRepository.save(staffUser3);
 
-            // Create work hours for each day
+
             WorkHours[] johnWorkHours = new WorkHours[7];
             WorkHours[] sarahWorkHours = new WorkHours[7];
             WorkHours[] michaelWorkHours = new WorkHours[7];
 
-            // Initialize all days
+
             for (int i = 0; i < 7; i++) {
                 johnWorkHours[i] = WorkHours.builder()
                         .dayOfWeek(i)
-                        .isWorking(i > 0 && i < 6) // Mon-Fri
+                        .isWorking(i > 0 && i < 6)
                         .startTime(i > 0 && i < 6 ? LocalTime.of(9, 0) : null)
                         .endTime(i > 0 && i < 6 ? LocalTime.of(17, 0) : null)
                         .build();
 
                 sarahWorkHours[i] = WorkHours.builder()
                         .dayOfWeek(i)
-                        .isWorking(i > 0 && i < 6) // Mon-Fri
+                        .isWorking(i > 0 && i < 6)
                         .startTime(i > 0 && i < 6 ? LocalTime.of(10, 0) : null)
                         .endTime(i > 0 && i < 6 ? LocalTime.of(18, 0) : null)
                         .build();
 
                 michaelWorkHours[i] = WorkHours.builder()
                         .dayOfWeek(i)
-                        .isWorking(i > 0 && i < 5) // Mon-Thu
+                        .isWorking(i > 0 && i < 5)
                         .startTime(i > 0 && i < 5 ? LocalTime.of(12, 0) : null)
                         .endTime(i > 0 && i < 5 ? LocalTime.of(20, 0) : null)
                         .build();
             }
 
-            // Add breaks
+
             TimeSlot johnLunch = TimeSlot.builder()
                     .startTime(LocalTime.of(12, 0))
                     .endTime(LocalTime.of(13, 0))
@@ -415,7 +415,7 @@ public class DataInitializer implements CommandLineRunner {
                     .note("Break")
                     .build();
 
-            // Add breaks to work hours
+
             for (int i = 1; i < 6; i++) {
                 johnWorkHours[i].addBreak(TimeSlot.builder()
                         .startTime(LocalTime.of(12, 0))
@@ -438,7 +438,7 @@ public class DataInitializer implements CommandLineRunner {
                         .build());
             }
 
-            // Create staff
+
             Staff staff1 = Staff.builder()
                     .user(staffUser1)
                     .position("Senior Stylist")
@@ -472,14 +472,14 @@ public class DataInitializer implements CommandLineRunner {
                     .updatedAt(LocalDateTime.now())
                     .build();
 
-            // Add work hours to staff
+
             for (int i = 0; i < 7; i++) {
                 staff1.addWorkHours(johnWorkHours[i]);
                 staff2.addWorkHours(sarahWorkHours[i]);
                 staff3.addWorkHours(michaelWorkHours[i]);
             }
 
-            // Save staff
+
             staffRepository.save(staff1);
             staffRepository.save(staff2);
             staffRepository.save(staff3);
@@ -488,25 +488,25 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initAppointments() {
         if (appointmentRepository.count() == 0) {
-            // Get sample customers
+
             Customer customer1 = customerRepository.findByEmail("john.doe@example.com")
                     .orElseThrow(() -> new RuntimeException("Customer not found"));
             Customer customer2 = customerRepository.findByEmail("jane.smith@example.com")
                     .orElseThrow(() -> new RuntimeException("Customer not found"));
 
-            // Get sample services
+
             Service haircut = serviceRepository.findByName("Pedicure")
                     .orElseThrow(() -> new RuntimeException("Service not found"));
             Service manicure = serviceRepository.findByName("Manicure")
                     .orElseThrow(() -> new RuntimeException("Service not found"));
 
-            // Get sample staff
+
             Staff staff1 = staffRepository.findByUserEmail("john.smith@example.com")
                     .orElseThrow(() -> new RuntimeException("Staff not found"));
             Staff staff2 = staffRepository.findByUserEmail("sarah.johnson@example.com")
                     .orElseThrow(() -> new RuntimeException("Staff not found"));
 
-            // Create sample appointments
+
             Appointment appointment1 = Appointment.builder()
                     .customer(customer1)
                     .service(haircut)
@@ -531,7 +531,7 @@ public class DataInitializer implements CommandLineRunner {
                     .updatedAt(LocalDateTime.now())
                     .build();
 
-            // Save appointments
+
             appointmentRepository.save(appointment1);
             appointmentRepository.save(appointment2);
         }

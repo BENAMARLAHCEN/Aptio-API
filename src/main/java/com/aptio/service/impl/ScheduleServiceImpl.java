@@ -31,7 +31,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final ScheduleEntryRepository scheduleEntryRepository;
     private final StaffRepository staffRepository;
     private final BusinessSettingsRepository settingsRepository;
-    private final ModelMapper modelMapper; // Keep for ResponseScheduleEntryDTO mapping
+    private final ModelMapper modelMapper;
     private final ScheduleMapper scheduleMapper;
 
     public List<ResponseScheduleEntryDTO> getStaffSchedule(String staffId, LocalDate startDate, LocalDate endDate) {
@@ -39,13 +39,9 @@ public class ScheduleServiceImpl implements ScheduleService {
             throw new ResourceNotFoundException("Staff", "id", staffId);
         }
         List<ScheduleEntry> staffSchedule = scheduleEntryRepository.findStaffSchedule(startDate, endDate, staffId);
-
-        // First convert to regular ScheduleEntryDTO using the mapper
         List<ScheduleEntryDTO> dtos = staffSchedule.stream()
                 .map(scheduleMapper::toDTO)
                 .collect(Collectors.toList());
-
-        // Then convert to ResponseScheduleEntryDTO (we're still using ModelMapper for this conversion)
         List<ResponseScheduleEntryDTO> response = dtos.stream()
                 .map(dto -> modelMapper.map(dto, ResponseScheduleEntryDTO.class))
                 .collect(Collectors.toList());
@@ -67,11 +63,8 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Transactional
     public ScheduleEntryDTO createScheduleEntry(ScheduleEntryDTO entryDTO) {
-        // Validate staff exists
         Staff staff = staffRepository.findById(entryDTO.getStaffId())
                 .orElseThrow(() -> new ResourceNotFoundException("Staff", "id", entryDTO.getStaffId()));
-
-        // Check for overlapping entries
         LocalDate date = entryDTO.getDate();
         LocalTime startTime = entryDTO.getStartTime();
         LocalTime endTime = entryDTO.getEndTime();
@@ -82,8 +75,6 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (!overlappingEntries.isEmpty()) {
             throw new ValidationException("There are overlapping schedule entries for this time period");
         }
-
-        // Create schedule entry using mapper
         ScheduleEntry entry = scheduleMapper.toEntity(entryDTO);
         entry.setStaff(staff);
 
@@ -98,8 +89,6 @@ public class ScheduleServiceImpl implements ScheduleService {
     public ScheduleEntryDTO updateScheduleEntry(String id, ScheduleEntryDTO entryDTO) {
         ScheduleEntry existingEntry = scheduleEntryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Schedule entry", "id", id));
-
-        // Check for overlapping entries if time changed
         boolean timeChanged = !existingEntry.getDate().equals(entryDTO.getDate()) ||
                 !existingEntry.getStartTime().equals(entryDTO.getStartTime()) ||
                 !existingEntry.getEndTime().equals(entryDTO.getEndTime());
@@ -115,8 +104,6 @@ public class ScheduleServiceImpl implements ScheduleService {
                 throw new ValidationException("There are overlapping schedule entries for this time period");
             }
         }
-
-        // Update entry using mapper
         scheduleMapper.updateEntityFromDTO(entryDTO, existingEntry);
         existingEntry.setUpdatedAt(LocalDateTime.now());
 
@@ -138,10 +125,8 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Transactional
     public void createAppointmentScheduleEntry(Appointment appointment) {
         if (appointment.getStaff() == null) {
-            return; // No staff assigned, no schedule entry needed
+            return;
         }
-
-        // Use mapper to create schedule entry from appointment
         ScheduleEntry entry = scheduleMapper.createEntryFromAppointment(appointment, appointment.getStaff());
         scheduleEntryRepository.save(entry);
     }
@@ -186,8 +171,6 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (existingSettings == null) {
             return settingsRepository.save(settings);
         }
-
-        // Update fields
         existingSettings.setBusinessName(settings.getBusinessName());
         existingSettings.setBusinessHoursStart(settings.getBusinessHoursStart());
         existingSettings.setBusinessHoursEnd(settings.getBusinessHoursEnd());

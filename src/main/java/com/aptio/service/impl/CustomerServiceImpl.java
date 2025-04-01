@@ -36,7 +36,7 @@ public class CustomerServiceImpl implements CustomerService {
     private final PasswordEncoder passwordEncoder;
     private final ModelMapper modelMapper;
 
-    private static final String DEFAULT_PASSWORD = "password123"; // This should be changed or generated randomly in production
+    private static final String DEFAULT_PASSWORD = "password123";
 
     public List<CustomerDTO> getAllCustomers() {
         return customerRepository.findAll().stream()
@@ -52,17 +52,12 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Transactional
     public CustomerDTO createCustomer(CustomerDTO customerDTO) {
-        // Check if email exists
         if (customerRepository.existsByEmail(customerDTO.getEmail())) {
             throw new ValidationException("Email is already in use");
         }
-
-        // Also check if email exists in users table
         if (userRepository.existsByEmail(customerDTO.getEmail())) {
             throw new ValidationException("Email is already in use by another user");
         }
-
-        // 1. Create a user first
         User user = new User();
         user.setFirstName(customerDTO.getFirstName());
         user.setLastName(customerDTO.getLastName());
@@ -74,8 +69,6 @@ public class CustomerServiceImpl implements CustomerService {
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
         user.setActive(true);
-
-        // Assign user role
         Role userRole = roleRepository.findByName(Role.RoleName.ROLE_USER)
                 .orElseThrow(() -> new ResourceNotFoundException("Role", "name", "ROLE_USER"));
         Set<Role> roles = new HashSet<>();
@@ -83,8 +76,6 @@ public class CustomerServiceImpl implements CustomerService {
         user.setRoles(roles);
 
         User savedUser = userRepository.save(user);
-
-        // 2. Now create the customer linked to this user
         Customer customer = modelMapper.map(customerDTO, Customer.class);
         customer.setRegistrationDate(LocalDateTime.now());
         customer.setUpdatedAt(LocalDateTime.now());
@@ -99,22 +90,15 @@ public class CustomerServiceImpl implements CustomerService {
     public CustomerDTO updateCustomer(String id, CustomerDTO customerDTO) {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", id));
-
-        // Check if email exists and not the same customer
         if (!customer.getEmail().equals(customerDTO.getEmail()) &&
                 customerRepository.existsByEmail(customerDTO.getEmail())) {
             throw new ValidationException("Email is already in use");
         }
-
-        // Also check if the new email exists in the users table
         if (!customer.getEmail().equals(customerDTO.getEmail()) &&
                 userRepository.existsByEmail(customerDTO.getEmail())) {
             throw new ValidationException("Email is already in use by another user");
         }
-
-        // Try to find user with the same email as the customer
         userRepository.findByEmail(customer.getEmail()).ifPresent(user -> {
-            // Update user details
             user.setFirstName(customerDTO.getFirstName());
             user.setLastName(customerDTO.getLastName());
             user.setEmail(customerDTO.getEmail());
@@ -123,8 +107,6 @@ public class CustomerServiceImpl implements CustomerService {
             user.setBirthDate(customerDTO.getBirthDate());
             userRepository.save(user);
         });
-
-        // Update customer fields
         customer.setFirstName(customerDTO.getFirstName());
         customer.setLastName(customerDTO.getLastName());
         customer.setEmail(customerDTO.getEmail());
@@ -142,8 +124,6 @@ public class CustomerServiceImpl implements CustomerService {
     public void deleteCustomer(String id) {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", id));
-
-        // Try to find and delete the associated user
         userRepository.findByEmail(customer.getEmail()).ifPresent(userRepository::delete);
 
         customerRepository.deleteById(id);
@@ -156,8 +136,6 @@ public class CustomerServiceImpl implements CustomerService {
 
         customer.setActive(active);
         Customer updatedCustomer = customerRepository.save(customer);
-
-        // Update user status if exists
         userRepository.findByEmail(customer.getEmail()).ifPresent(user -> {
             user.setActive(active);
             userRepository.save(user);
@@ -180,7 +158,7 @@ public class CustomerServiceImpl implements CustomerService {
         CustomerNote note = modelMapper.map(noteDTO, CustomerNote.class);
         note.setCustomer(customer);
         note.setCreatedAt(LocalDateTime.now());
-        note.setCreatedBy(noteDTO.getCreatedBy()); // Ensure created_by is set
+        note.setCreatedBy(noteDTO.getCreatedBy());
 
         customer.addNote(note);
         customerRepository.save(customer);

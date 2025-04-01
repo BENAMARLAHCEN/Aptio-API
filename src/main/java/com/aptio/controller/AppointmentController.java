@@ -100,24 +100,13 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentService.getAvailableTimeSlots(date, serviceId, staffId));
     }
 
-    // Add these methods to AppointmentController.java
-
-    /**
-     * Get appointments for the current authenticated user
-     */
     @GetMapping("/user/appointments")
     public ResponseEntity<List<AppointmentDTO>> getCurrentUserAppointments(
             @RequestParam(required = false) String status) {
-
-        // Get current authenticated user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userEmail = authentication.getName();
-
-        // Get user from repository
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
-
-        // Get customer record for this user
         Customer customer = customerRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "email", userEmail));
 
@@ -134,27 +123,15 @@ public class AppointmentController {
         return ResponseEntity.ok(appointments);
     }
 
-    /**
-     * Get a specific appointment for the current user, ensuring they own it
-     */
     @GetMapping("/user/appointments/{id}")
     public ResponseEntity<AppointmentDTO> getUserAppointmentById(@PathVariable String id) {
-        // Get current authenticated user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userEmail = authentication.getName();
-
-        // Get user from repository
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
-
-        // Get customer record for this user
         Customer customer = customerRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "email", userEmail));
-
-        // Get the appointment
         AppointmentDTO appointment = appointmentService.getAppointmentById(id);
-
-        // Verify this appointment belongs to the current user
         if (!appointment.getCustomerId().equals(customer.getId())) {
             throw new AccessDeniedException("You do not have permission to view this appointment");
         }
@@ -162,9 +139,6 @@ public class AppointmentController {
         return ResponseEntity.ok(appointment);
     }
 
-    /**
-     * Update appointment status (cancel) for the current user
-     */
     @PatchMapping("/user/appointments/{id}/status")
     public ResponseEntity<AppointmentDTO> updateUserAppointmentStatus(
             @PathVariable String id,
@@ -174,34 +148,20 @@ public class AppointmentController {
         if (!status.equalsIgnoreCase("CANCELLED")) {
             throw new ValidationException("Users can only cancel their appointments");
         }
-
-        // Get current authenticated user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userEmail = authentication.getName();
-
-        // Get customer record for this user
         Customer customer = customerRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "email", userEmail));
-
-        // Get the appointment
         AppointmentDTO appointment = appointmentService.getAppointmentById(id);
-
-        // Verify this appointment belongs to the current user
         if (!appointment.getCustomerId().equals(customer.getId())) {
             throw new AccessDeniedException("You do not have permission to modify this appointment");
         }
-
-        // Verify the appointment can be cancelled
         if (appointment.getStatus().equalsIgnoreCase("COMPLETED")) {
             throw new ValidationException("Cannot cancel a completed appointment");
         }
-
-        // Verify the appointment is not already cancelled
         if (appointment.getStatus().equalsIgnoreCase("CANCELLED")) {
             throw new ValidationException("Appointment is already cancelled");
         }
-
-        // Verify the appointment is in the future
         LocalDateTime appointmentDateTime = LocalDateTime.of(
                 appointment.getDate(),
                 appointment.getTime()
@@ -210,28 +170,16 @@ public class AppointmentController {
         if (appointmentDateTime.isBefore(LocalDateTime.now())) {
             throw new ValidationException("Cannot cancel a past appointment");
         }
-
-        // Update the status to cancelled
         return ResponseEntity.ok(appointmentService.updateAppointmentStatus(id, status));
     }
 
-    /**
-     * Create an appointment for the current user
-     */
     @PostMapping("/user/appointments")
     public ResponseEntity<AppointmentDTO> createUserAppointment(@Valid @RequestBody AppointmentDTO appointmentDTO) {
-        // Get current authenticated user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userEmail = authentication.getName();
-
-        // Get customer record for this user
         Customer customer = customerRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "email", userEmail));
-
-        // Set the customer ID in the DTO
         appointmentDTO.setCustomerId(customer.getId());
-
-        // Create the appointment
         return new ResponseEntity<>(appointmentService.createAppointment(appointmentDTO), HttpStatus.CREATED);
     }
 }

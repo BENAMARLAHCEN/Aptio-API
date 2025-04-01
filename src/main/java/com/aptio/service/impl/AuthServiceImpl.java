@@ -42,12 +42,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        // Check if email exists
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new ApiException("Email is already taken", HttpStatus.BAD_REQUEST);
         }
-
-        // Create new user
         User user = User.builder()
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
@@ -58,18 +55,12 @@ public class AuthServiceImpl implements AuthService {
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
-
-        // Set user role
         Set<Role> roles = new HashSet<>();
         Role userRole = roleRepository.findByName(Role.RoleName.ROLE_USER)
                 .orElseThrow(() -> new ApiException("Role not found", HttpStatus.INTERNAL_SERVER_ERROR));
         roles.add(userRole);
         user.setRoles(roles);
-
-        // Save user
         user = userRepository.save(user);
-
-        // Create and save a customer record linked to this user
         Customer customer = Customer.builder()
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
@@ -81,8 +72,6 @@ public class AuthServiceImpl implements AuthService {
                 .registrationDate(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
-
-        // If address details were provided, create an address for the customer
         if (request.getAddress() != null) {
             Address address = Address.builder()
                     .street(request.getAddress().getStreet())
@@ -95,8 +84,6 @@ public class AuthServiceImpl implements AuthService {
         }
 
         customerRepository.save(customer);
-
-        // Generate JWT token
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
@@ -104,8 +91,6 @@ public class AuthServiceImpl implements AuthService {
         String jwt = jwtUtil.generateToken(
                 (org.springframework.security.core.userdetails.User) authentication.getPrincipal()
         );
-
-        // Return response
         return AuthResponse.builder()
                 .token(jwt)
                 .userId(user.getId())
@@ -119,22 +104,15 @@ public class AuthServiceImpl implements AuthService {
     }
 
     public AuthResponse authenticate(AuthRequest request) {
-        // Authenticate user
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
         SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        // Generate JWT token
         org.springframework.security.core.userdetails.User userDetails =
                 (org.springframework.security.core.userdetails.User) authentication.getPrincipal();
         String jwt = jwtUtil.generateToken(userDetails);
-
-        // Get user details
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ApiException("User not found", HttpStatus.NOT_FOUND));
-
-        // Return response
         return AuthResponse.builder()
                 .token(jwt)
                 .userId(user.getId())
