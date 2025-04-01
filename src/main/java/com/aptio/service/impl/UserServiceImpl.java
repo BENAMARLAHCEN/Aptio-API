@@ -59,14 +59,10 @@ public class UserServiceImpl implements UserService {
     public UserDTO updateUser(String id, UserDTO userDTO) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
-
-        // Check if email exists and is not the current user's email
         if (!user.getEmail().equals(userDTO.getEmail()) &&
                 userRepository.existsByEmail(userDTO.getEmail())) {
             throw new ValidationException("Email is already in use");
         }
-
-        // Update user fields
         user.setFirstName(userDTO.getFirstName());
         user.setLastName(userDTO.getLastName());
         user.setEmail(userDTO.getEmail());
@@ -89,14 +85,10 @@ public class UserServiceImpl implements UserService {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
-
-        // Check if email exists and is not the current user's email
         if (!user.getEmail().equals(userDTO.getEmail()) &&
                 userRepository.existsByEmail(userDTO.getEmail())) {
             throw new ValidationException("Email is already in use");
         }
-
-        // Update allowed fields (users can only update certain fields about themselves)
         user.setFirstName(userDTO.getFirstName());
         user.setLastName(userDTO.getLastName());
         user.setEmail(userDTO.getEmail());
@@ -116,18 +108,12 @@ public class UserServiceImpl implements UserService {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
-
-        // Validate current password
         if (!passwordEncoder.matches(passwordUpdateDTO.getCurrentPassword(), user.getPassword())) {
             throw new ValidationException("Current password is incorrect");
         }
-
-        // Validate new password matches confirmation
         if (!passwordUpdateDTO.getNewPassword().equals(passwordUpdateDTO.getConfirmPassword())) {
             throw new ValidationException("New password and confirmation do not match");
         }
-
-        // Update password
         user.setPassword(passwordEncoder.encode(passwordUpdateDTO.getNewPassword()));
         userRepository.save(user);
     }
@@ -151,8 +137,6 @@ public class UserServiceImpl implements UserService {
 
     private UserDTO convertToDTO(User user) {
         UserDTO dto = modelMapper.map(user, UserDTO.class);
-
-        // Map roles to role names
         Set<String> roleNames = user.getRoles().stream()
                 .map(role -> role.getName().name())
                 .collect(Collectors.toSet());

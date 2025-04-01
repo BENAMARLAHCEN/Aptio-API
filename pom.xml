@@ -20,6 +20,17 @@
         <jjwt.version>0.11.5</jjwt.version>
     </properties>
 
+    <profiles>
+        <profile>
+            <id>sonar</id>
+            <properties>
+                <sonar.host.url>http://localhost:9000</sonar.host.url>
+                <sonar.login>admin</sonar.login>
+                <sonar.password>admin</sonar.password>
+            </properties>
+        </profile>
+    </profiles>
+
     <dependencies>
         <!-- Spring Boot Starters -->
         <dependency>
@@ -125,6 +136,11 @@
                         </exclude>
                     </excludes>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.sonarsource.scanner.maven</groupId>
+                <artifactId>sonar-maven-plugin</artifactId>
+                <version>3.9.1.2184</version>
             </plugin>
         </plugins>
     </build>

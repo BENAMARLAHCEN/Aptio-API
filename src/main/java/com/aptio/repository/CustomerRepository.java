@@ -15,8 +15,6 @@ public interface CustomerRepository extends JpaRepository<Customer, String> {
 
     boolean existsByEmail(String email);
 
-    List<Customer> findByActive(boolean active);
-
     @Query("SELECT c FROM Customer c WHERE " +
             "LOWER(c.firstName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
             "LOWER(c.lastName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +

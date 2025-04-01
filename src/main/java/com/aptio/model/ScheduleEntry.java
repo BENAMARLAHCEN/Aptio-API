@@ -26,13 +26,9 @@ public class ScheduleEntry {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "staff_id", nullable = false)
     private Staff staff;
-
-    @ManyToOne
-    @JoinColumn(name = "resource_id")
-    private Resource resource;
 
     @ManyToOne
     @JoinColumn(name = "appointment_id")

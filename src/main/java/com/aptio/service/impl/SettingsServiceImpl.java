@@ -1,4 +1,4 @@
-// src/main/java/com/aptio/service/SettingsService.java
+
 package com.aptio.service.impl;
 
 import com.aptio.model.BusinessSettings;
@@ -24,7 +24,7 @@ public class SettingsServiceImpl implements SettingsService {
                     .businessName("Aptio Appointment System")
                     .businessHoursStart(LocalTime.of(9, 0))
                     .businessHoursEnd(LocalTime.of(18, 0))
-                    .daysOpen("0111110") // Mon-Fri
+                    .daysOpen("0111110")
                     .defaultAppointmentDuration(30)
                     .timeSlotInterval(15)
                     .allowOverlappingAppointments(false)

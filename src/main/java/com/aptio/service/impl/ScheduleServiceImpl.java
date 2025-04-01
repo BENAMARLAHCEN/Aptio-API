@@ -1,8 +1,10 @@
 package com.aptio.service.impl;
 
+import com.aptio.dto.ResponseScheduleEntryDTO;
 import com.aptio.dto.ScheduleEntryDTO;
 import com.aptio.exception.ResourceNotFoundException;
 import com.aptio.exception.ValidationException;
+import com.aptio.mapper.ScheduleMapper;
 import com.aptio.model.Appointment;
 import com.aptio.model.BusinessSettings;
 import com.aptio.model.ScheduleEntry;
@@ -30,36 +32,39 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final StaffRepository staffRepository;
     private final BusinessSettingsRepository settingsRepository;
     private final ModelMapper modelMapper;
+    private final ScheduleMapper scheduleMapper;
 
-    public List<ScheduleEntryDTO> getStaffSchedule(String staffId, LocalDate startDate, LocalDate endDate) {
+    public List<ResponseScheduleEntryDTO> getStaffSchedule(String staffId, LocalDate startDate, LocalDate endDate) {
         if (!staffRepository.existsById(staffId)) {
             throw new ResourceNotFoundException("Staff", "id", staffId);
         }
-
-        return scheduleEntryRepository.findStaffSchedule(startDate, endDate, staffId).stream()
-                .map(entry -> modelMapper.map(entry, ScheduleEntryDTO.class))
+        List<ScheduleEntry> staffSchedule = scheduleEntryRepository.findStaffSchedule(startDate, endDate, staffId);
+        List<ScheduleEntryDTO> dtos = staffSchedule.stream()
+                .map(scheduleMapper::toDTO)
                 .collect(Collectors.toList());
+        List<ResponseScheduleEntryDTO> response = dtos.stream()
+                .map(dto -> modelMapper.map(dto, ResponseScheduleEntryDTO.class))
+                .collect(Collectors.toList());
+
+        return response;
     }
 
     public List<ScheduleEntryDTO> getScheduleForDate(LocalDate date) {
         return scheduleEntryRepository.findByDate(date).stream()
-                .map(entry -> modelMapper.map(entry, ScheduleEntryDTO.class))
+                .map(scheduleMapper::toDTO)
                 .collect(Collectors.toList());
     }
 
     public List<ScheduleEntryDTO> getScheduleForDateRange(LocalDate startDate, LocalDate endDate) {
         return scheduleEntryRepository.findByDateBetween(startDate, endDate).stream()
-                .map(entry -> modelMapper.map(entry, ScheduleEntryDTO.class))
+                .map(scheduleMapper::toDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional
     public ScheduleEntryDTO createScheduleEntry(ScheduleEntryDTO entryDTO) {
-        // Validate staff exists
         Staff staff = staffRepository.findById(entryDTO.getStaffId())
                 .orElseThrow(() -> new ResourceNotFoundException("Staff", "id", entryDTO.getStaffId()));
-
-        // Check for overlapping entries
         LocalDate date = entryDTO.getDate();
         LocalTime startTime = entryDTO.getStartTime();
         LocalTime endTime = entryDTO.getEndTime();
@@ -70,38 +75,20 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (!overlappingEntries.isEmpty()) {
             throw new ValidationException("There are overlapping schedule entries for this time period");
         }
-
-        // Create schedule entry
-        ScheduleEntry entry = modelMapper.map(entryDTO, ScheduleEntry.class);
+        ScheduleEntry entry = scheduleMapper.toEntity(entryDTO);
         entry.setStaff(staff);
-
-        // Set resource if provided
-        if (entryDTO.getResourceId() != null && !entryDTO.getResourceId().isEmpty()) {
-            // Resource validation would go here
-        }
-
-        // Set default values if not provided
-        if (entry.getType() == null) {
-            entry.setType(ScheduleEntry.EntryType.OTHER);
-        }
-
-        if (entry.getStatus() == null) {
-            entry.setStatus(ScheduleEntry.EntryStatus.SCHEDULED);
-        }
 
         entry.setCreatedAt(LocalDateTime.now());
         entry.setUpdatedAt(LocalDateTime.now());
 
         ScheduleEntry savedEntry = scheduleEntryRepository.save(entry);
-        return modelMapper.map(savedEntry, ScheduleEntryDTO.class);
+        return scheduleMapper.toDTO(savedEntry);
     }
 
     @Transactional
     public ScheduleEntryDTO updateScheduleEntry(String id, ScheduleEntryDTO entryDTO) {
         ScheduleEntry existingEntry = scheduleEntryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Schedule entry", "id", id));
-
-        // Check for overlapping entries if time changed
         boolean timeChanged = !existingEntry.getDate().equals(entryDTO.getDate()) ||
                 !existingEntry.getStartTime().equals(entryDTO.getStartTime()) ||
                 !existingEntry.getEndTime().equals(entryDTO.getEndTime());
@@ -117,25 +104,11 @@ public class ScheduleServiceImpl implements ScheduleService {
                 throw new ValidationException("There are overlapping schedule entries for this time period");
             }
         }
-
-        // Update entry
-        existingEntry.setTitle(entryDTO.getTitle());
-        existingEntry.setDate(entryDTO.getDate());
-        existingEntry.setStartTime(entryDTO.getStartTime());
-        existingEntry.setEndTime(entryDTO.getEndTime());
-        existingEntry.setNotes(entryDTO.getNotes());
-        existingEntry.setColor(entryDTO.getColor());
-
-        if (entryDTO.getType() != null) {
-            existingEntry.setType(ScheduleEntry.EntryType.valueOf(entryDTO.getType()));
-        }
-
-        if (entryDTO.getStatus() != null) {
-            existingEntry.setStatus(ScheduleEntry.EntryStatus.valueOf(entryDTO.getStatus()));
-        }
+        scheduleMapper.updateEntityFromDTO(entryDTO, existingEntry);
+        existingEntry.setUpdatedAt(LocalDateTime.now());
 
         ScheduleEntry updatedEntry = scheduleEntryRepository.save(existingEntry);
-        return modelMapper.map(updatedEntry, ScheduleEntryDTO.class);
+        return scheduleMapper.toDTO(updatedEntry);
     }
 
     @Transactional
@@ -152,29 +125,9 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Transactional
     public void createAppointmentScheduleEntry(Appointment appointment) {
         if (appointment.getStaff() == null) {
-            return; // No staff assigned, no schedule entry needed
+            return;
         }
-
-        // Calculate end time
-        LocalTime endTime = appointment.getTime().plusMinutes(appointment.getService().getDuration());
-
-        // Create schedule entry
-        ScheduleEntry entry = ScheduleEntry.builder()
-                .staff(appointment.getStaff())
-                .appointment(appointment)
-                .title(appointment.getService().getName() + " - " +
-                        appointment.getCustomer().getFirstName() + " " +
-                        appointment.getCustomer().getLastName())
-                .date(appointment.getDate())
-                .startTime(appointment.getTime())
-                .endTime(endTime)
-                .notes(appointment.getNotes())
-                .type(ScheduleEntry.EntryType.APPOINTMENT)
-                .status(mapAppointmentStatusToEntryStatus(appointment.getStatus()))
-                .createdAt(appointment.getCreatedAt())
-                .updatedAt(appointment.getUpdatedAt())
-                .build();
-
+        ScheduleEntry entry = scheduleMapper.createEntryFromAppointment(appointment, appointment.getStaff());
         scheduleEntryRepository.save(entry);
     }
 
@@ -218,8 +171,6 @@ public class ScheduleServiceImpl implements ScheduleService {
         if (existingSettings == null) {
             return settingsRepository.save(settings);
         }
-
-        // Update fields
         existingSettings.setBusinessName(settings.getBusinessName());
         existingSettings.setBusinessHoursStart(settings.getBusinessHoursStart());
         existingSettings.setBusinessHoursEnd(settings.getBusinessHoursEnd());
@@ -234,22 +185,5 @@ public class ScheduleServiceImpl implements ScheduleService {
         existingSettings.setWebsite(settings.getWebsite());
 
         return settingsRepository.save(existingSettings);
-    }
-
-    /**
-     * Maps appointment status to schedule entry status
-     */
-    private ScheduleEntry.EntryStatus mapAppointmentStatusToEntryStatus(Appointment.AppointmentStatus status) {
-        switch (status) {
-            case PENDING:
-            case CONFIRMED:
-                return ScheduleEntry.EntryStatus.SCHEDULED;
-            case COMPLETED:
-                return ScheduleEntry.EntryStatus.COMPLETED;
-            case CANCELLED:
-                return ScheduleEntry.EntryStatus.CANCELLED;
-            default:
-                return ScheduleEntry.EntryStatus.SCHEDULED;
-        }
     }
 }

@@ -14,7 +14,7 @@ import java.time.LocalTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ScheduleEntryDTO {
+public class ResponseScheduleEntryDTO {
     private String id;
 
     @NotBlank(message = "Staff ID is required")
@@ -31,10 +31,10 @@ public class ScheduleEntryDTO {
     private LocalDate date;
 
     @NotNull(message = "Start time is required")
-    private LocalTime startTime;
+    private String startTime;
 
     @NotNull(message = "End time is required")
-    private LocalTime endTime;
+    private String endTime;
 
     private String notes;
 

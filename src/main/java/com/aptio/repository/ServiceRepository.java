@@ -10,9 +10,6 @@ import java.util.Optional;
 
 @Repository
 public interface ServiceRepository extends JpaRepository<Service, String> {
-    List<Service> findByCategoryId(String categoryId);
-
-    List<Service> findByActive(boolean active);
 
     @Query("SELECT s FROM Service s WHERE s.category.name = :categoryName")
     List<Service> findByCategoryName(String categoryName);

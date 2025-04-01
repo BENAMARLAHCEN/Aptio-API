@@ -1,5 +1,6 @@
 package com.aptio.controller;
 
+import com.aptio.dto.ResponseScheduleEntryDTO;
 import com.aptio.dto.ScheduleEntryDTO;
 import com.aptio.model.BusinessSettings;
 import com.aptio.service.ScheduleService;
@@ -23,7 +24,7 @@ public class ScheduleController {
 
     @GetMapping("/staff/{staffId}")
     @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_STAFF')")
-    public ResponseEntity<List<ScheduleEntryDTO>> getStaffSchedule(
+    public ResponseEntity<List<ResponseScheduleEntryDTO>> getStaffSchedule(
             @PathVariable String staffId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {

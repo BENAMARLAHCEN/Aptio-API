@@ -26,8 +26,6 @@ public class ServiceEntityServiceImpl implements ServiceEntityService {
     private final ServiceCategoryRepository categoryRepository;
     private final ServiceMapper serviceMapper;
     private final ModelMapper modelMapper;
-
-    // Service methods
     public List<ServiceDTO> getAllServices() {
         return serviceRepository.findAll().stream()
                 .map(serviceMapper::toDTO)
@@ -42,7 +40,6 @@ public class ServiceEntityServiceImpl implements ServiceEntityService {
 
     @Transactional
     public ServiceDTO createService(ServiceDTO serviceDTO) {
-        // Check if category exists
         ServiceCategory category = categoryRepository.findByName(serviceDTO.getCategory())
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "name", serviceDTO.getCategory()));
 
@@ -59,12 +56,8 @@ public class ServiceEntityServiceImpl implements ServiceEntityService {
     public ServiceDTO updateService(String id, ServiceDTO serviceDTO) {
         Service existingService = serviceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Service", "id", id));
-
-        // Check if category exists
         ServiceCategory category = categoryRepository.findByName(serviceDTO.getCategory())
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "name", serviceDTO.getCategory()));
-
-        // Update the service entity
         serviceMapper.updateEntityFromDTO(serviceDTO, existingService);
         existingService.setCategory(category);
 
@@ -102,8 +95,6 @@ public class ServiceEntityServiceImpl implements ServiceEntityService {
                 .map(serviceMapper::toDTO)
                 .collect(Collectors.toList());
     }
-
-    // Category methods
     public List<ServiceCategoryDTO> getAllCategories() {
         List<ServiceCategory> categories = categoryRepository.findAll();
         return categories.stream()
@@ -126,7 +117,6 @@ public class ServiceEntityServiceImpl implements ServiceEntityService {
 
     @Transactional
     public ServiceCategoryDTO createCategory(ServiceCategoryDTO categoryDTO) {
-        // Check if name exists
         if (categoryRepository.existsByName(categoryDTO.getName())) {
             throw new ValidationException("Category name already exists");
         }
@@ -145,14 +135,10 @@ public class ServiceEntityServiceImpl implements ServiceEntityService {
     public ServiceCategoryDTO updateCategory(String id, ServiceCategoryDTO categoryDTO) {
         ServiceCategory existingCategory = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "id", id));
-
-        // Check if name exists and not the same category
         if (!existingCategory.getName().equals(categoryDTO.getName()) &&
                 categoryRepository.existsByName(categoryDTO.getName())) {
             throw new ValidationException("Category name already exists");
         }
-
-        // Update fields
         existingCategory.setName(categoryDTO.getName());
         existingCategory.setDescription(categoryDTO.getDescription());
         existingCategory.setActive(categoryDTO.isActive());
@@ -170,8 +156,6 @@ public class ServiceEntityServiceImpl implements ServiceEntityService {
     public void deleteCategory(String id) {
         ServiceCategory category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "id", id));
-
-        // Check if category has services
         if (category.getServicesCount() > 0) {
             throw new ValidationException("Cannot delete category with services. Reassign or delete those services first.");
         }

@@ -83,28 +83,19 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Transactional
     public AppointmentDTO createAppointment(AppointmentDTO appointmentDTO) {
-        // Validate customer exists
         Customer customer = customerRepository.findById(appointmentDTO.getCustomerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", appointmentDTO.getCustomerId()));
-
-        // Validate service exists
         com.aptio.model.Service service = serviceRepository.findById(appointmentDTO.getServiceId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service", "id", appointmentDTO.getServiceId()));
-
-        // Validate staff if provided
         Staff staff = null;
         if (appointmentDTO.getStaffId() != null && !appointmentDTO.getStaffId().isEmpty()) {
             staff = staffRepository.findById(appointmentDTO.getStaffId())
                     .orElseThrow(() -> new ResourceNotFoundException("Staff", "id", appointmentDTO.getStaffId()));
         }
-
-        // Check if time slot is available
         if (!isTimeSlotAvailable(appointmentDTO.getDate(), appointmentDTO.getTime(),
                 service.getDuration(), appointmentDTO.getStaffId())) {
             throw new ValidationException("The selected time slot is not available");
         }
-
-        // Create appointment
         Appointment appointment = new Appointment();
         appointment.setCustomer(customer);
         appointment.setService(service);
@@ -118,8 +109,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setUpdatedAt(TimeUtils.getCurrentTime());
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
-
-        // Create schedule entry for this appointment if staff is assigned
         if (staff != null) {
             scheduleService.createAppointmentScheduleEntry(savedAppointment);
         }
@@ -131,23 +120,15 @@ public class AppointmentServiceImpl implements AppointmentService {
     public AppointmentDTO updateAppointment(String id, AppointmentDTO appointmentDTO) {
         Appointment existingAppointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", id));
-
-        // Validate customer exists
         Customer customer = customerRepository.findById(appointmentDTO.getCustomerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", appointmentDTO.getCustomerId()));
-
-        // Validate service exists
         com.aptio.model.Service service = serviceRepository.findById(appointmentDTO.getServiceId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service", "id", appointmentDTO.getServiceId()));
-
-        // Validate staff if provided
         Staff staff = null;
         if (appointmentDTO.getStaffId() != null && !appointmentDTO.getStaffId().isEmpty()) {
             staff = staffRepository.findById(appointmentDTO.getStaffId())
                     .orElseThrow(() -> new ResourceNotFoundException("Staff", "id", appointmentDTO.getStaffId()));
         }
-
-        // Check if time slot is available (only if date or time changed)
         boolean timeChanged = !existingAppointment.getDate().equals(appointmentDTO.getDate()) ||
                 !existingAppointment.getTime().equals(appointmentDTO.getTime());
 
@@ -161,14 +142,10 @@ public class AppointmentServiceImpl implements AppointmentService {
                     service.getDuration(), appointmentDTO.getStaffId(), id)) {
                 throw new ValidationException("The selected time slot is not available");
             }
-
-            // Delete old schedule entry if exists
             if (existingAppointment.getStaff() != null) {
                 scheduleService.deleteAppointmentScheduleEntries(id);
             }
         }
-
-        // Update appointment
         existingAppointment.setCustomer(customer);
         existingAppointment.setService(service);
         existingAppointment.setStaff(staff);
@@ -178,8 +155,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         existingAppointment.setPrice(service.getPrice());
 
         Appointment updatedAppointment = appointmentRepository.save(existingAppointment);
-
-        // Create new schedule entry if needed
         if ((timeChanged || staffChanged) && staff != null) {
             scheduleService.createAppointmentScheduleEntry(updatedAppointment);
         }
@@ -195,8 +170,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         try {
             Appointment.AppointmentStatus newStatus = Appointment.AppointmentStatus.valueOf(status.toUpperCase());
             appointment.setStatus(newStatus);
-
-            // If appointment is cancelled, also update any schedule entries
             if (newStatus == Appointment.AppointmentStatus.CANCELLED && appointment.getStaff() != null) {
                 scheduleService.updateAppointmentScheduleEntryStatus(id, ScheduleEntry.EntryStatus.CANCELLED);
             } else if (newStatus == Appointment.AppointmentStatus.COMPLETED && appointment.getStaff() != null) {
@@ -204,8 +177,6 @@ public class AppointmentServiceImpl implements AppointmentService {
             }
 
             Appointment updatedAppointment = appointmentRepository.save(appointment);
-
-            // Update customer stats if appointment is completed
             if (newStatus == Appointment.AppointmentStatus.COMPLETED) {
                 updateCustomerStats(appointment.getCustomer().getId());
             }
@@ -220,8 +191,6 @@ public class AppointmentServiceImpl implements AppointmentService {
     public void deleteAppointment(String id) {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", id));
-
-        // Delete any schedule entries first
         if (appointment.getStaff() != null) {
             scheduleService.deleteAppointmentScheduleEntries(id);
         }
@@ -239,7 +208,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         BusinessSettings settings = scheduleService.getBusinessSettings();
         boolean[] daysOpen = settings.getDaysOpenArray();
-        int dayOfWeek = date.getDayOfWeek().getValue() % 7; // 0 for Sunday, 1 for Monday, etc.
+        int dayOfWeek = date.getDayOfWeek().getValue() % 7;
 
         if (!daysOpen[dayOfWeek]) {
             return new ArrayList<>();
@@ -270,33 +239,22 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     private boolean isTimeSlotAvailable(LocalDate date, LocalTime startTime, int duration, String staffId, String excludeAppointmentId) {
-        // Calculate end time
         LocalTime endTime = startTime.plusMinutes(duration);
-
-        // Check business settings
         BusinessSettings settings = scheduleService.getBusinessSettings();
         boolean[] daysOpen = settings.getDaysOpenArray();
-        int dayOfWeek = date.getDayOfWeek().getValue() % 7; // 0 for Sunday, 1 for Monday, etc.
-
-        // If business is closed on this day, time slot is not available
+        int dayOfWeek = date.getDayOfWeek().getValue() % 7;
         if (!daysOpen[dayOfWeek]) {
             return false;
         }
-
-        // Check if time is within business hours
         LocalTime businessStart = settings.getBusinessHoursStart();
         LocalTime businessEnd = settings.getBusinessHoursEnd();
 
         if (startTime.isBefore(businessStart) || endTime.isAfter(businessEnd)) {
             return false;
         }
-
-        // If staff is provided, check staff availability
         if (staffId != null && !staffId.isEmpty()) {
             Staff staff = staffRepository.findById(staffId)
                     .orElseThrow(() -> new ResourceNotFoundException("Staff", "id", staffId));
-
-            // Check if staff is working on this day
             WorkHours workHours = staff.getWorkHours().stream()
                     .filter(wh -> wh.getDayOfWeek() == dayOfWeek)
                     .findFirst()
@@ -305,24 +263,18 @@ public class AppointmentServiceImpl implements AppointmentService {
             if (workHours == null || !workHours.isWorking()) {
                 return false;
             }
-
-            // Check if time is within staff work hours
             LocalTime workStart = workHours.getStartTime();
             LocalTime workEnd = workHours.getEndTime();
 
             if (startTime.isBefore(workStart) || endTime.isAfter(workEnd)) {
                 return false;
             }
-
-            // Check if time overlaps with staff breaks
             for (TimeSlot breakSlot : workHours.getBreaks()) {
                 if (TimeUtils.doTimeRangesOverlap(startTime, endTime,
                         breakSlot.getStartTime(), breakSlot.getEndTime())) {
                     return false;
                 }
             }
-
-            // Check if staff already has appointments at this time
             List<Appointment> overlappingAppointments;
             if (excludeAppointmentId != null) {
                 overlappingAppointments = appointmentRepository.findByDateAndStaffId(date, staffId).stream()
@@ -343,11 +295,9 @@ public class AppointmentServiceImpl implements AppointmentService {
                 return false;
             }
         } else {
-            // If no staff specified, check if there's any staff available at this time
             List<Staff> allStaff = staffRepository.findByIsActive(true);
 
             boolean anyStaffAvailable = allStaff.stream().anyMatch(staff -> {
-                // Check if staff is working on this day
                 WorkHours workHours = staff.getWorkHours().stream()
                         .filter(wh -> wh.getDayOfWeek() == dayOfWeek)
                         .findFirst()
@@ -356,24 +306,18 @@ public class AppointmentServiceImpl implements AppointmentService {
                 if (workHours == null || !workHours.isWorking()) {
                     return false;
                 }
-
-                // Check if time is within staff work hours
                 LocalTime workStart = workHours.getStartTime();
                 LocalTime workEnd = workHours.getEndTime();
 
                 if (startTime.isBefore(workStart) || endTime.isAfter(workEnd)) {
                     return false;
                 }
-
-                // Check if time overlaps with staff breaks
                 for (TimeSlot breakSlot : workHours.getBreaks()) {
                     if (TimeUtils.doTimeRangesOverlap(startTime, endTime,
                             breakSlot.getStartTime(), breakSlot.getEndTime())) {
                         return false;
                     }
                 }
-
-                // Check if staff already has appointments at this time
                 List<Appointment> overlappingAppointments;
                 if (excludeAppointmentId != null) {
                     overlappingAppointments = appointmentRepository.findByDateAndStaffId(date, staff.getId()).stream()
@@ -401,40 +345,18 @@ public class AppointmentServiceImpl implements AppointmentService {
         return true;
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     private void updateCustomerStats(String customerId) {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", customerId));
-
-        // Get all completed appointments for this customer
         List<Appointment> completedAppointments = appointmentRepository.findByCustomerId(customerId).stream()
                 .filter(a -> a.getStatus() == Appointment.AppointmentStatus.COMPLETED)
                 .collect(Collectors.toList());
-
-        // Update customer stats
         customer.setTotalVisits(completedAppointments.size());
 
         BigDecimal totalSpent = completedAppointments.stream()
                 .map(Appointment::getPrice)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         customer.setTotalSpent(totalSpent);
-
-        // Update last visit time
         if (!completedAppointments.isEmpty()) {
             customer.setLastVisit(completedAppointments.get(completedAppointments.size() - 1).getUpdatedAt());
         }
@@ -444,8 +366,6 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private AppointmentDTO convertToDTO(Appointment appointment) {
         AppointmentDTO dto = modelMapper.map(appointment, AppointmentDTO.class);
-
-        // Set additional fields
         dto.setCustomerName(appointment.getCustomer().getFirstName() + " " + appointment.getCustomer().getLastName());
         dto.setServiceName(appointment.getService().getName());
         dto.setDuration(appointment.getService().getDuration());
