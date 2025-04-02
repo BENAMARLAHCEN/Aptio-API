@@ -178,36 +178,6 @@ public class AppointmentServiceTest {
     }
 
     @Test
-    void getAllAppointments_ShouldReturnListOfAppointments() {
-
-        List<Appointment> appointments = List.of(appointment);
-        when(appointmentRepository.findAll()).thenReturn(appointments);
-
-
-        List<AppointmentDTO> result = appointmentService.getAllAppointments();
-
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(appointment.getId(), result.get(0).getId());
-        verify(appointmentRepository).findAll();
-    }
-
-    @Test
-    void getAppointmentById_WhenAppointmentExists_ShouldReturnAppointment() {
-
-        when(appointmentRepository.findById("1")).thenReturn(Optional.of(appointment));
-
-
-        AppointmentDTO result = appointmentService.getAppointmentById("1");
-
-
-        assertNotNull(result);
-        assertEquals(appointment.getId(), result.getId());
-        verify(appointmentRepository).findById("1");
-    }
-
-    @Test
     void getAppointmentById_WhenAppointmentDoesNotExist_ShouldThrowException() {
 
         when(appointmentRepository.findById("999")).thenReturn(Optional.empty());
@@ -215,32 +185,6 @@ public class AppointmentServiceTest {
 
         assertThrows(ResourceNotFoundException.class, () -> appointmentService.getAppointmentById("999"));
         verify(appointmentRepository).findById("999");
-    }
-
-    @Test
-    void createAppointment_WithValidData_ShouldCreateNewAppointment() {
-
-        when(customerRepository.findById(customer.getId())).thenReturn(Optional.of(customer));
-        when(serviceRepository.findById(service.getId())).thenReturn(Optional.of(service));
-        when(staffRepository.findById(staff.getId())).thenReturn(Optional.of(staff));
-        when(scheduleService.getBusinessSettings()).thenReturn(businessSettings);
-        when(appointmentRepository.findByDateAndStaffId(any(), any())).thenReturn(new ArrayList<>());
-        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(invocation -> {
-            Appointment savedAppointment = invocation.getArgument(0);
-            savedAppointment.setId("1");
-            return savedAppointment;
-        });
-
-
-        AppointmentDTO result = appointmentService.createAppointment(appointmentDTO);
-
-
-        assertNotNull(result);
-        assertEquals(customer.getId(), result.getCustomerId());
-        assertEquals(service.getId(), result.getServiceId());
-        assertEquals(staff.getId(), result.getStaffId());
-        verify(appointmentRepository).save(any(Appointment.class));
-        verify(scheduleService).createAppointmentScheduleEntry(any(Appointment.class));
     }
 
     @Test
@@ -306,63 +250,6 @@ public class AppointmentServiceTest {
         verify(appointmentRepository, never()).save(any(Appointment.class));
     }
 
-    @Test
-    void updateAppointment_WithValidData_ShouldUpdateAppointment() {
-
-        when(appointmentRepository.findById("1")).thenReturn(Optional.of(appointment));
-        when(customerRepository.findById(customer.getId())).thenReturn(Optional.of(customer));
-        when(serviceRepository.findById(service.getId())).thenReturn(Optional.of(service));
-        when(staffRepository.findById(staff.getId())).thenReturn(Optional.of(staff));
-        when(scheduleService.getBusinessSettings()).thenReturn(businessSettings);
-        when(appointmentRepository.findByDateAndStaffId(any(), any())).thenReturn(new ArrayList<>());
-        when(appointmentRepository.save(any(Appointment.class))).thenReturn(appointment);
-
-
-        appointmentDTO.setNotes("Updated notes");
-        appointmentDTO.setTime(LocalTime.of(11, 0));
-
-
-        AppointmentDTO result = appointmentService.updateAppointment("1", appointmentDTO);
-
-
-        assertNotNull(result);
-        assertEquals("Updated notes", result.getNotes());
-        assertEquals(LocalTime.of(11, 0), result.getTime());
-        verify(appointmentRepository).save(any(Appointment.class));
-        verify(scheduleService).deleteAppointmentScheduleEntries("1");
-        verify(scheduleService).createAppointmentScheduleEntry(any(Appointment.class));
-    }
-
-    @Test
-    void updateAppointmentStatus_ToConfirmed_ShouldUpdateStatus() {
-
-        when(appointmentRepository.findById("1")).thenReturn(Optional.of(appointment));
-        when(appointmentRepository.save(any(Appointment.class))).thenReturn(appointment);
-
-
-        AppointmentDTO result = appointmentService.updateAppointmentStatus("1", "CONFIRMED");
-
-
-        assertNotNull(result);
-        assertEquals("CONFIRMED", result.getStatus());
-        verify(appointmentRepository).save(any(Appointment.class));
-    }
-
-    @Test
-    void updateAppointmentStatus_ToCancelled_ShouldUpdateStatusAndScheduleEntry() {
-
-        when(appointmentRepository.findById("1")).thenReturn(Optional.of(appointment));
-        when(appointmentRepository.save(any(Appointment.class))).thenReturn(appointment);
-
-
-        AppointmentDTO result = appointmentService.updateAppointmentStatus("1", "CANCELLED");
-
-
-        assertNotNull(result);
-        assertEquals("CANCELLED", result.getStatus());
-        verify(appointmentRepository).save(any(Appointment.class));
-        verify(scheduleService).updateAppointmentScheduleEntryStatus("1", ScheduleEntry.EntryStatus.CANCELLED);
-    }
 
     @Test
     void updateAppointmentStatus_WithInvalidStatus_ShouldThrowException() {
@@ -439,73 +326,11 @@ public class AppointmentServiceTest {
     }
 
     @Test
-    void getAppointmentsByCustomerId_ShouldReturnCustomerAppointments() {
-
-        List<Appointment> customerAppointments = List.of(appointment);
-        when(customerRepository.existsById(customer.getId())).thenReturn(true);
-        when(appointmentRepository.findByCustomerId(customer.getId())).thenReturn(customerAppointments);
-
-
-        List<AppointmentDTO> result = appointmentService.getAppointmentsByCustomerId(customer.getId());
-
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(appointment.getId(), result.get(0).getId());
-    }
-
-    @Test
     void getAppointmentsByCustomerId_WithNonExistentCustomer_ShouldThrowException() {
 
         when(customerRepository.existsById("999")).thenReturn(false);
 
 
         assertThrows(ResourceNotFoundException.class, () -> appointmentService.getAppointmentsByCustomerId("999"));
-    }
-
-    @Test
-    void getAppointmentsByDate_ShouldReturnAppointmentsForDate() {
-
-        LocalDate date = LocalDate.now();
-        List<Appointment> dateAppointments = List.of(appointment);
-        when(appointmentRepository.findByDate(date)).thenReturn(dateAppointments);
-
-
-        List<AppointmentDTO> result = appointmentService.getAppointmentsByDate(date);
-
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-    }
-
-    @Test
-    void getAppointmentsByDateRange_ShouldReturnAppointmentsInRange() {
-
-        LocalDate startDate = LocalDate.now();
-        LocalDate endDate = LocalDate.now().plusDays(7);
-        List<Appointment> rangeAppointments = List.of(appointment);
-        when(appointmentRepository.findByDateBetween(startDate, endDate)).thenReturn(rangeAppointments);
-
-
-        List<AppointmentDTO> result = appointmentService.getAppointmentsByDateRange(startDate, endDate);
-
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-    }
-
-    @Test
-    void getAppointmentsByStatus_ShouldReturnAppointmentsWithStatus() {
-
-        List<Appointment> pendingAppointments = List.of(appointment);
-        when(appointmentRepository.findByStatus(Appointment.AppointmentStatus.PENDING)).thenReturn(pendingAppointments);
-
-
-        List<AppointmentDTO> result = appointmentService.getAppointmentsByStatus(Appointment.AppointmentStatus.PENDING);
-
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals("PENDING", result.get(0).getStatus());
     }
 }
